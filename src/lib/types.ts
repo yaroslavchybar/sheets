@@ -31,11 +31,13 @@ export type AppUser = {
 // Represents an Instagram account from the Google Sheet
 export type InstagramAccount = {
   rowNumber: number;
+  assignmentId: number; // The ID from the daily_assignments table
   id: string;
   userName: string;
   fullName: string;
   profileUrl: string;
   isSubscribed: boolean;
+  isDeleted: boolean;
 };
 
 // Represents application settings

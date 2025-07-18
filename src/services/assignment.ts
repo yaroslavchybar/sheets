@@ -25,11 +25,12 @@ export async function getDailyTasksForMember(
 
   const { data: existingAssignments, error: existingError } = await supabase
     .from('daily_assignments')
-    .select('id, instagram_id, created_at')
+    .select('id, instagram_id, created_at, is_subscribed, is_deleted')
     .eq('user_id', userId)
     .eq('assignment_date', today)
+    .eq('is_deleted', false) // Only fetch non-deleted tasks
     .order('created_at', { ascending: true });
-  
+
   if (existingError) {
     console.error('Error fetching existing assignments:', existingError);
     return [];
@@ -38,7 +39,7 @@ export async function getDailyTasksForMember(
   const currentTaskCount = existingAssignments.length;
   let finalAssignments = [...existingAssignments];
 
-  // 2. Compare current task count with the limit and adjust
+  // 2. Compare current task count with the limit and adjust if necessary
   if (currentTaskCount < assignmentLimit) {
     // --- HANDLE LIMIT INCREASE ---
     const needed = assignmentLimit - currentTaskCount;
@@ -51,16 +52,15 @@ export async function getDailyTasksForMember(
       
     if (allTodayError) {
       console.error("Error fetching all of today's assignments:", allTodayError);
-      return []; // Return what we have so far
+      return [];
     }
     const assignedTodayIds = new Set(allTodayAssignments.map((a) => a.instagram_id));
 
     const allAccounts = await getAvailableAccounts();
     if (!allAccounts || allAccounts.length === 0) {
-      return []; // No accounts to assign from
+      return [];
     }
     
-    // Filter out already assigned accounts
     const unassignedAccounts = allAccounts.filter((acc) => !assignedTodayIds.has(acc.id));
     const newTasksToAssign = unassignedAccounts.slice(0, needed);
 
@@ -74,35 +74,16 @@ export async function getDailyTasksForMember(
       const { data: insertedAssignments, error: insertError } = await supabase
         .from('daily_assignments')
         .insert(newAssignmentRecords)
-        .select('id, instagram_id, created_at');
+        .select('id, instagram_id, created_at, is_subscribed, is_deleted');
 
       if (insertError) {
         console.error('Error saving new assignments:', insertError);
-        // Continue with what we have, don't show broken data
       } else {
         finalAssignments.push(...insertedAssignments);
       }
     }
-  } else if (currentTaskCount > assignmentLimit) {
-    // --- HANDLE LIMIT DECREASE ---
-    const excessCount = currentTaskCount - assignmentLimit;
-    const assignmentsToRemove = existingAssignments.slice(-excessCount); // Remove the newest ones
-    const idsToRemove = assignmentsToRemove.map((a) => a.id);
+  } 
 
-    if (idsToRemove.length > 0) {
-      const { error: deleteError } = await supabase
-        .from('daily_assignments')
-        .delete()
-        .in('id', idsToRemove);
-      
-      if (deleteError) {
-        console.error('Error removing excess assignments:', deleteError);
-      } else {
-        finalAssignments = existingAssignments.slice(0, assignmentLimit);
-      }
-    }
-  }
-  
   // 3. If there are no assignments to process, return empty
   if (finalAssignments.length === 0) {
     return [];
@@ -113,15 +94,24 @@ export async function getDailyTasksForMember(
   const allAccounts = await getAvailableAccounts();
 
   if (!allAccounts || allAccounts.length === 0) {
-    return []; // Cannot get details if sheet is empty
+    return [];
   }
   
-  const tasksWithDetails = allAccounts.filter((acc) => finalAssignedIds.has(acc.id));
+  const idToAccountMap = new Map(allAccounts.map(acc => [acc.id, acc]));
   
-  // Preserve the original assignment order
-  const idToAccountMap = new Map(tasksWithDetails.map(acc => [acc.id, acc]));
+  // Combine db data with sheet data
   const orderedTasks = finalAssignments
-    .map(assignment => idToAccountMap.get(assignment.instagram_id))
+    .map(assignment => {
+      const accountDetails = idToAccountMap.get(assignment.instagram_id);
+      if (!accountDetails) return undefined;
+      
+      return {
+        ...accountDetails,
+        assignmentId: assignment.id,
+        isSubscribed: assignment.is_subscribed,
+        isDeleted: assignment.is_deleted,
+      };
+    })
     .filter((task): task is InstagramAccount => task !== undefined);
 
   return orderedTasks;

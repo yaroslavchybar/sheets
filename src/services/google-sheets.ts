@@ -28,8 +28,9 @@ const sheets = google.sheets({ version: 'v4', auth });
 /**
  * Fetches all available accounts from the "need_sub" sheet.
  * Assumes that any row present is an available task.
+ * Note: This function doesn't return isSubscribed or isDeleted as they are not on the sheet.
  */
-export async function getAvailableAccounts(): Promise<InstagramAccount[]> {
+export async function getAvailableAccounts(): Promise<Omit<InstagramAccount, 'isSubscribed' | 'isDeleted' | 'assignmentId'>[]> {
   if (!SPREADSHEET_ID) {
     throw new Error('Google Sheet ID is not configured in environment variables.');
   }
@@ -46,13 +47,12 @@ export async function getAvailableAccounts(): Promise<InstagramAccount[]> {
     }
     
     // Map rows to InstagramAccount objects
-    const accounts: InstagramAccount[] = rows.map((row, index) => ({
+    const accounts = rows.map((row, index) => ({
       rowNumber: index + 2, // Sheet rows are 1-based, and we start from A2
       id: row[0] || '', // Column A: ID
       userName: row[1] || '', // Column B: userName
       fullName: row[2] || '', // Column C: fullName
       profileUrl: row[3] || '', // Column D: profileUrl
-      isSubscribed: row[4] === 'TRUE', // Column E: Подписался
     }));
     
     return accounts;
