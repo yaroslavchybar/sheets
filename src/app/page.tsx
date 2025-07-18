@@ -1,7 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Dashboard from '@/components/dashboard';
-import type { AppUser } from '@/lib/types';
+import type { AppUser, InstagramAccount } from '@/lib/types';
+import { getDailyTasksForMember } from '@/services/assignment';
 
 export default async function Home() {
   const supabase = createClient();
@@ -29,5 +30,10 @@ export default async function Home() {
     role: profile?.role as AppUser['role'] || 'member', // Assign role, default to 'member'
   }
 
-  return <Dashboard user={appUser} />;
+  let dailyTasks: InstagramAccount[] = [];
+  if (appUser.role === 'member') {
+    dailyTasks = await getDailyTasksForMember(appUser.id);
+  }
+
+  return <Dashboard user={appUser} tasks={dailyTasks} />;
 }

@@ -41,3 +41,8 @@ export type InstagramAccount = {
   posts: string;
   isSubscribed: boolean;
 };
+
+// Represents application settings
+export type AppSettings = {
+  daily_assignments_per_member: number;
+};

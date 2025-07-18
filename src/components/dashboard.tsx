@@ -1,13 +1,24 @@
 'use client';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import * as React from 'react';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { SheetTable } from '@/components/sheet-table';
 import { Sheet } from 'lucide-react';
-import type { AppUser } from '@/lib/types';
+import type { AppUser, InstagramAccount } from '@/lib/types';
 import { UserNav } from '@/components/user-nav';
 
-export default function Dashboard({ user }: { user: AppUser }) {
+interface DashboardProps {
+  user: AppUser;
+  tasks: InstagramAccount[];
+}
 
+export default function Dashboard({ user, tasks }: DashboardProps) {
   return (
     <div className="flex min-h-screen w-full flex-col">
       <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
@@ -22,13 +33,19 @@ export default function Dashboard({ user }: { user: AppUser }) {
       <main className="flex-1 p-4 md:p-6 lg:p-8">
         <Card>
           <CardHeader>
-            <CardTitle>Project Tasks</CardTitle>
+            <CardTitle>Daily Instagram Accounts</CardTitle>
             <CardDescription>
-              An interactive list of tasks from your connected Google Sheet.
+              Your list of accounts to subscribe to for today.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <SheetTable user={user} />
+            {user.role === 'member' ? (
+              <SheetTable tasks={tasks} />
+            ) : (
+              <div className="text-center text-muted-foreground">
+                Welcome, Admin! You do not have daily tasks.
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>

@@ -3,6 +3,7 @@
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
+import type { AppSettings } from '../types';
 
 // This function requires an admin-level Supabase client to fetch all users.
 // We create a dedicated admin client here using the service role key.
@@ -24,7 +25,8 @@ export async function getAllUsersWithRoles() {
   const supabase = createServerClient();
 
   // 1. Fetch all users from Supabase Auth using the admin client
-  const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+  const { data: authData, error: authError } =
+    await supabaseAdmin.auth.admin.listUsers();
 
   if (authError) {
     console.error('Error fetching users from Supabase Auth:', authError);
@@ -41,10 +43,10 @@ export async function getAllUsersWithRoles() {
   }
 
   // Create a map of user_id -> role for easy lookup
-  const rolesMap = new Map(roles?.map(r => [r.user_id, r.role]) || []);
+  const rolesMap = new Map(roles?.map((r) => [r.user_id, r.role]) || []);
 
   // 3. Combine the data
-  const usersWithRoles = authData.users.map(user => ({
+  const usersWithRoles = authData.users.map((user) => ({
     id: user.id,
     email: user.email!,
     role: rolesMap.get(user.id) || 'member',
@@ -55,36 +57,83 @@ export async function getAllUsersWithRoles() {
   return usersWithRoles;
 }
 
-export async function updateUserRole(userId: string, role: 'admin' | 'member' | 'editor' | 'moderator') {
-    const supabase = createServerClient();
-    
-    // Check if the current user is an admin before proceeding
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-        return { error: { message: 'You must be logged in to update roles.' } };
-    }
+export async function updateUserRole(
+  userId: string,
+  role: 'admin' | 'member' | 'editor' | 'moderator'
+) {
+  const supabase = createServerClient();
 
-    const { data: adminProfile, error: adminError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .single();
-    
-    if (adminError || adminProfile?.role !== 'admin') {
-        return { error: { message: 'You do not have permission to update roles.' } };
-    }
+  // Check if the current user is an admin before proceeding
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: { message: 'You must be logged in to update roles.' } };
+  }
 
-    // Proceed with the update
-    const { error } = await supabase
-        .from('user_roles')
-        .update({ role })
-        .eq('user_id', userId);
+  const { data: adminProfile, error: adminError } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single();
 
-    if (error) {
-        return { error };
-    }
+  if (adminError || adminProfile?.role !== 'admin') {
+    return { error: { message: 'You do not have permission to update roles.' } };
+  }
 
-    revalidatePath('/admin/users');
-    revalidatePath('/');
-    return { error: null };
+  // Proceed with the update
+  const { error } = await supabase
+    .from('user_roles')
+    .update({ role })
+    .eq('user_id', userId);
+
+  if (error) {
+    return { error };
+  }
+
+  revalidatePath('/admin/users');
+  revalidatePath('/');
+  return { error: null };
+}
+
+export async function getSettings(): Promise<AppSettings> {
+  const supabase = createServerClient();
+  const { data, error } = await supabase.from('app_settings').select('*');
+
+  if (error) {
+    console.error('Error fetching settings:', error);
+    // Return default settings on error
+    return { daily_assignments_per_member: 10 };
+  }
+
+  const settings = data.reduce((acc, setting) => {
+    acc[setting.key] = setting.value;
+    return acc;
+  }, {} as any);
+  
+  // Ensure numeric values are parsed
+  settings.daily_assignments_per_member = parseInt(settings.daily_assignments_per_member, 10) || 10;
+
+  return settings;
+}
+
+export async function updateSettings(newSettings: Partial<AppSettings>) {
+  const supabase = createServerClient();
+
+  const updates = Object.entries(newSettings).map(([key, value]) =>
+    supabase
+      .from('app_settings')
+      .update({ value: String(value) })
+      .eq('key', key)
+  );
+  
+  const results = await Promise.all(updates);
+  const firstError = results.find(res => res.error);
+
+  if (firstError) {
+    return { error: firstError.error };
+  }
+  
+  revalidatePath('/admin/settings');
+  return { error: null };
 }

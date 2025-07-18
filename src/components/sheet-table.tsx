@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import type { Task, AppUser } from "@/lib/types";
+import * as React from 'react';
+import type { InstagramAccount } from '@/lib/types';
 import {
   Table,
   TableBody,
@@ -9,48 +9,55 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
-import { Skeleton } from "./ui/skeleton";
+} from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from './ui/skeleton';
+import { updateSubscriptionStatus } from '@/services/google-sheets';
+import Link from 'next/link';
 
 interface SheetTableProps {
-  user: AppUser;
+  tasks: InstagramAccount[];
 }
 
-export function SheetTable({ user }: SheetTableProps) {
-  const [tasks, setTasks] = React.useState<Task[]>([]);
+export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
+  const [tasks, setTasks] = React.useState<InstagramAccount[]>(initialTasks);
   const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
 
   React.useEffect(() => {
-    // We will implement the task fetching logic here later
+    // We already have tasks from server props, just need to set loading to false.
     setIsLoading(false);
   }, []);
 
-  const handleStatusChange = async (taskId: string, newStatus: Task["status"]) => {
-    // Logic to be implemented
-  };
+  const handleCheckboxChange = async (
+    rowNumber: number,
+    checked: boolean
+  ) => {
+    // Optimistically update the UI
+    setTasks((prevTasks) =>
+      prevTasks.map((task) =>
+        task.rowNumber === rowNumber ? { ...task, isSubscribed: checked } : task
+      )
+    );
 
-  const handleCheckboxChange = (taskId: string, checked: boolean) => {
-    const newStatus = checked ? "Done" : "In Progress";
-    handleStatusChange(taskId, newStatus);
-  };
-  
-  const getStatusBadgeVariant = (status: Task["status"]) => {
-    if (status === "Done") return "default";
-    if (status === "In Progress") return "secondary";
-    return "outline";
+    const success = await updateSubscriptionStatus(rowNumber, checked);
+
+    if (!success) {
+      toast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description: 'Could not update the sheet. Please try again.',
+      });
+      // Revert the change if the API call fails
+      setTasks((prevTasks) =>
+        prevTasks.map((task) =>
+          task.rowNumber === rowNumber
+            ? { ...task, isSubscribed: !checked }
+            : task
+        )
+      );
+    }
   };
 
   if (isLoading) {
@@ -70,74 +77,52 @@ export function SheetTable({ user }: SheetTableProps) {
 
   return (
     <div className="w-full rounded-md border">
-        {tasks.length === 0 ? (
-            <div className="p-4 text-center text-muted-foreground">
-                No tasks assigned for today.
-            </div>
-        ) : (
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[50px]"></TableHead>
-            <TableHead>Task</TableHead>
-            <TableHead className="w-[150px]">Assignee</TableHead>
-            <TableHead className="w-[150px]">Status</TableHead>
-            <TableHead className="w-[150px] text-right">Due Date</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {tasks.map((task) => {
-            const isOwner = user.role === 'admin' || user.email === task.assignee.email;
-            return (
-              <TableRow key={task.id} className={cn(!isOwner && "text-muted-foreground/70")}>
+      {tasks.length === 0 ? (
+        <div className="p-4 text-center text-muted-foreground">
+          No tasks assigned for today.
+        </div>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[80px]">Subscribed</TableHead>
+              <TableHead>Username</TableHead>
+              <TableHead>Full Name</TableHead>
+              <TableHead>Bio</TableHead>
+              <TableHead className="text-right">Profile</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {tasks.map((task) => (
+              <TableRow key={task.id}>
                 <TableCell>
                   <Checkbox
-                    id={`check-${task.id}`}
-                    checked={task.status === "Done"}
-                    onCheckedChange={(checked) => handleCheckboxChange(task.id, !!checked)}
-                    disabled={!isOwner}
-                    aria-label={`Mark task ${task.task} as done`}
+                    id={`check-${task.rowNumber}`}
+                    checked={task.isSubscribed}
+                    onCheckedChange={(checked) =>
+                      handleCheckboxChange(task.rowNumber, !!checked)
+                    }
+                    aria-label={`Mark account ${task.userName} as subscribed`}
                   />
                 </TableCell>
-                <TableCell className="font-medium">{task.task}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Avatar className="h-6 w-6">
-                      <AvatarImage src={task.assignee.avatar} alt={task.assignee.name} />
-                      <AvatarFallback>{task.assignee.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <span>{task.assignee.name}</span>
-                  </div>
+                <TableCell className="font-medium">{task.userName}</TableCell>
+                <TableCell>{task.fullName}</TableCell>
+                <TableCell className="max-w-xs truncate">{task.bio}</TableCell>
+                <TableCell className="text-right">
+                  <Link
+                    href={task.profileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 hover:underline"
+                  >
+                    View
+                  </Link>
                 </TableCell>
-                <TableCell>
-                    {isOwner ? (
-                        <Select
-                            value={task.status}
-                            onValueChange={(value: Task["status"]) => handleStatusChange(task.id, value)}
-                            disabled={!isOwner}
-                        >
-                            <SelectTrigger className="h-8">
-                                <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="To Do">To Do</SelectItem>
-                                <SelectItem value="In Progress">In Progress</SelectItem>
-                                <SelectItem value="Done">Done</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    ) : (
-                        <Badge variant={getStatusBadgeVariant(task.status)} className="pointer-events-none">
-                            {task.status}
-                        </Badge>
-                    )}
-                </TableCell>
-                <TableCell className="text-right">{task.dueDate}</TableCell>
               </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-        )}
+            ))}
+          </TableBody>
+        </Table>
+      )}
     </div>
   );
 }
