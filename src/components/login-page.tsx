@@ -19,6 +19,7 @@ export default function LoginPage() {
     if (email) {
       setIsLoading(true);
       await login(email);
+      // If login fails, isLoading will remain true. Let's ensure it's always set to false.
       setIsLoading(false);
     }
   };
@@ -32,7 +33,7 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl">SheetFlow</CardTitle>
           <CardDescription>
-            Sign in with your email to access your dashboard.
+            Sign in with an email from your Google Sheet to access your dashboard.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -54,9 +55,6 @@ export default function LoginPage() {
               Sign In
             </Button>
           </form>
-            <p className="mt-4 px-2 text-center text-xs text-muted-foreground">
-              Hint: Try <code className="font-mono text-sm">alice@sheetflow.app</code> or <code className="font-mono text-sm">admin@sheetflow.app</code>
-            </p>
         </CardContent>
       </Card>
     </div>
