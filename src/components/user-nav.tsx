@@ -11,45 +11,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LogOut, User as UserIcon, Shield, Skeleton } from 'lucide-react';
+import { LogOut, User as UserIcon, Shield } from 'lucide-react';
 import type { AppUser } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
 
 type UserNavProps = {
-  user: {
-    id: string;
-    email: string;
-    username?: string;
-    photoUrl: string;
-  };
+  user: AppUser;
 };
 
 export function UserNav({ user }: UserNavProps) {
   const router = useRouter();
-  const [role, setRole] = useState<'admin' | 'member' | 'editor' | 'moderator' | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchUserRole = async () => {
-      setIsLoading(true);
-      const supabase = createClient();
-      const { data } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .single();
-      
-      setRole(data?.role as any);
-      setIsLoading(false);
-    };
-
-    if (user.id) {
-      fetchUserRole();
-    }
-  }, [user.id]);
 
   const handleLogout = async () => {
     const supabase = createClient();
@@ -89,21 +62,14 @@ export function UserNav({ user }: UserNavProps) {
             <UserIcon className="mr-2 h-4 w-4" />
             <span>Profile</span>
           </DropdownMenuItem>
-          {isLoading ? (
-            <DropdownMenuItem disabled>
-              <Skeleton className="mr-2 h-4 w-4" />
-              <Skeleton className="h-4 w-32" />
-            </DropdownMenuItem>
-          ) : (
-            role === 'admin' && (
+          {user.role === 'admin' && (
              <Link href="/admin/users" passHref>
                 <DropdownMenuItem>
                     <Shield className="mr-2 h-4 w-4" />
                     <span>User Management</span>
                 </DropdownMenuItem>
             </Link>
-          )
-        )}
+          )}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>

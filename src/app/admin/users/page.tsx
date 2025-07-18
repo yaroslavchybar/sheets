@@ -20,6 +20,7 @@ import {
 import { UserRoleSelector } from './_components/user-role-selector';
 import { Sheet } from 'lucide-react';
 import { UserNav } from '@/components/user-nav';
+import type { AppUser } from '@/lib/types';
 
 export default async function AdminUsersPage() {
   const supabase = createClient();
@@ -43,11 +44,12 @@ export default async function AdminUsersPage() {
 
   const users = await getAllUsersWithRoles();
   
-  const pageUser = {
+  const pageUser: AppUser = {
     id: user.id,
     email: user.email!,
     username: user.email!.split('@')[0],
     photoUrl: user.user_metadata.avatar_url || `https://placehold.co/40x40/212529/F8F9FA/png?text=${user.email!.charAt(0).toUpperCase()}`,
+    role: profile.role,
   }
 
   return (
