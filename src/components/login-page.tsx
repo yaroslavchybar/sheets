@@ -34,7 +34,6 @@ export default function LoginPage() {
         description: error.message,
       });
     } else {
-        router.push('/');
         router.refresh();
     }
     setIsLoading(false);
