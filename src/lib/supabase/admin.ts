@@ -3,7 +3,7 @@
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
-import type { AppSettings, UserWithRole } from '../types';
+import type { UserWithRole } from '../types';
 
 // This function requires an admin-level Supabase client to fetch all users.
 // We create a dedicated admin client here using the service role key.
@@ -108,9 +108,10 @@ export async function updateUserRole(
 
 export async function updateUserAssignmentLimit(
   userId: string,
-  limit: number
+  newLimit: number
 ) {
   const supabase = createServerClient();
+  const today = new Date().toISOString().split('T')[0];
 
   // Check if the current user is an admin before proceeding
   const { data: { user } } = await supabase.auth.getUser();
@@ -122,18 +123,62 @@ export async function updateUserAssignmentLimit(
     .select('role')
     .eq('user_id', user.id)
     .single();
+
   if (adminError || adminProfile?.role !== 'admin') {
     return { error: { message: 'You do not have permission to update settings.' } };
   }
+  
+  // If the limit is being reduced, remove excess assignments for today
+  const { data: currentAssignments, error: fetchError } = await supabase
+    .from('daily_assignments')
+    .select('id', { count: 'exact' })
+    .eq('user_id', userId)
+    .eq('assignment_date', today);
+  
+  if(fetchError) {
+      return { error: { message: 'Could not check current assignments.'} }
+  }
+
+  const currentCount = currentAssignments?.length || 0;
+
+  if (newLimit < currentCount) {
+    const assignmentsToRemove = currentCount - newLimit;
+
+    // Get the IDs of the most recent assignments to remove
+    const { data: assignmentsToDelete, error: selectError } = await supabase
+      .from('daily_assignments')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('assignment_date', today)
+      .order('created_at', { ascending: false })
+      .limit(assignmentsToRemove);
+
+    if (selectError) {
+      return { error: { message: 'Could not retrieve assignments to delete.' } };
+    }
+
+    if (assignmentsToDelete && assignmentsToDelete.length > 0) {
+        const idsToDelete = assignmentsToDelete.map(a => a.id);
+        const { error: deleteError } = await supabase
+            .from('daily_assignments')
+            .delete()
+            .in('id', idsToDelete);
+        
+        if (deleteError) {
+            return { error: { message: 'Failed to remove excess assignments.' } };
+        }
+    }
+  }
+
 
   // Update the limit for the specified user
-  const { error } = await supabase
+  const { error: updateError } = await supabase
     .from('user_roles')
-    .update({ daily_assignments_limit: limit })
+    .update({ daily_assignments_limit: newLimit })
     .eq('user_id', userId);
 
-  if (error) {
-    return { error };
+  if (updateError) {
+    return { error: updateError };
   }
 
   revalidatePath('/admin/users');
