@@ -45,18 +45,37 @@ export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
   }
 
   // 3. Fetch subscribed counts for today
-  const { data: subscribedData, error: subscribedError } = await supabase
-    .from('daily_assignments')
-    .select('user_id')
-    .eq('is_subscribed', true)
-    .eq('assignment_date', today);
-    
-  if (subscribedError) {
-    console.error('Error fetching subscribed counts:', subscribedError);
+  const { data: subscribedTodayData, error: subscribedTodayError } =
+    await supabase
+      .from('daily_assignments')
+      .select('user_id')
+      .eq('is_subscribed', true)
+      .eq('assignment_date', today);
+
+  if (subscribedTodayError) {
+    console.error(
+      'Error fetching today subscribed counts:',
+      subscribedTodayError
+    );
     return [];
   }
 
-  // Create a map of user_id -> role info
+  // 4. Fetch total subscribed counts
+  const { data: subscribedTotalData, error: subscribedTotalError } =
+    await supabase
+      .from('daily_assignments')
+      .select('user_id')
+      .eq('is_subscribed', true);
+
+  if (subscribedTotalError) {
+    console.error(
+      'Error fetching total subscribed counts:',
+      subscribedTotalError
+    );
+    return [];
+  }
+
+  // Create helper maps
   const rolesMap = new Map(
     rolesData?.map((r) => [
       r.user_id,
@@ -64,16 +83,27 @@ export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
     ]) || []
   );
 
-  // Create a map of user_id -> subscribed count
-  const subscribedCountMap = new Map<string, number>();
-  if (subscribedData) {
-    for (const record of subscribedData) {
-      subscribedCountMap.set(record.user_id, (subscribedCountMap.get(record.user_id) || 0) + 1);
+  const subscribedTodayCountMap = new Map<string, number>();
+  if (subscribedTodayData) {
+    for (const record of subscribedTodayData) {
+      subscribedTodayCountMap.set(
+        record.user_id,
+        (subscribedTodayCountMap.get(record.user_id) || 0) + 1
+      );
     }
   }
 
+  const subscribedTotalCountMap = new Map<string, number>();
+  if (subscribedTotalData) {
+    for (const record of subscribedTotalData) {
+      subscribedTotalCountMap.set(
+        record.user_id,
+        (subscribedTotalCountMap.get(record.user_id) || 0) + 1
+      );
+    }
+  }
 
-  // 4. Combine the data
+  // 5. Combine all data
   const usersWithRoles = authData.users.map((user) => {
     const roleInfo = rolesMap.get(user.id);
     return {
@@ -81,7 +111,8 @@ export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
       email: user.email!,
       role: roleInfo?.role || 'member',
       daily_assignments_limit: roleInfo?.daily_assignments_limit ?? 10,
-      subscribed_today_count: subscribedCountMap.get(user.id) || 0,
+      subscribed_today_count: subscribedTodayCountMap.get(user.id) || 0,
+      subscribed_total_count: subscribedTotalCountMap.get(user.id) || 0,
     };
   });
 
@@ -111,7 +142,9 @@ export async function updateUserRole(
     .single();
 
   if (adminError || adminProfile?.role !== 'admin') {
-    return { error: { message: 'You do not have permission to update roles.' } };
+    return {
+      error: { message: 'You do not have permission to update roles.' },
+    };
   }
 
   // Proceed with the update
@@ -137,9 +170,13 @@ export async function updateUserAssignmentLimit(
   const today = new Date().toISOString().split('T')[0];
 
   // Check if the current user is an admin before proceeding
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) {
-    return { error: { message: 'You must be logged in to update settings.' } };
+    return {
+      error: { message: 'You must be logged in to update settings.' },
+    };
   }
   const { data: adminProfile, error: adminError } = await supabase
     .from('user_roles')
@@ -148,18 +185,20 @@ export async function updateUserAssignmentLimit(
     .single();
 
   if (adminError || adminProfile?.role !== 'admin') {
-    return { error: { message: 'You do not have permission to update settings.' } };
+    return {
+      error: { message: 'You do not have permission to update settings.' },
+    };
   }
-  
+
   // If the limit is being reduced, remove excess assignments for today
   const { data: currentAssignments, error: fetchError } = await supabase
     .from('daily_assignments')
     .select('id', { count: 'exact' })
     .eq('user_id', userId)
     .eq('assignment_date', today);
-  
-  if(fetchError) {
-      return { error: { message: 'Could not check current assignments.'} }
+
+  if (fetchError) {
+    return { error: { message: 'Could not check current assignments.' } };
   }
 
   const currentCount = currentAssignments?.length || 0;
@@ -177,22 +216,23 @@ export async function updateUserAssignmentLimit(
       .limit(assignmentsToRemove);
 
     if (selectError) {
-      return { error: { message: 'Could not retrieve assignments to delete.' } };
+      return {
+        error: { message: 'Could not retrieve assignments to delete.' },
+      };
     }
 
     if (assignmentsToDelete && assignmentsToDelete.length > 0) {
-        const idsToDelete = assignmentsToDelete.map(a => a.id);
-        const { error: deleteError } = await supabase
-            .from('daily_assignments')
-            .delete()
-            .in('id', idsToDelete);
-        
-        if (deleteError) {
-            return { error: { message: 'Failed to remove excess assignments.' } };
-        }
+      const idsToDelete = assignmentsToDelete.map((a) => a.id);
+      const { error: deleteError } = await supabase
+        .from('daily_assignments')
+        .delete()
+        .in('id', idsToDelete);
+
+      if (deleteError) {
+        return { error: { message: 'Failed to remove excess assignments.' } };
+      }
     }
   }
-
 
   // Update the limit for the specified user
   const { error: updateError } = await supabase

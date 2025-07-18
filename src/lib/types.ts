@@ -52,4 +52,5 @@ export type UserWithRole = {
   role: 'admin' | 'member' | 'editor' | 'moderator';
   daily_assignments_limit: number;
   subscribed_today_count: number;
+  subscribed_total_count: number;
 }

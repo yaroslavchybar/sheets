@@ -72,7 +72,7 @@ export default async function AdminUsersPage() {
           <CardHeader>
             <CardTitle>User Management</CardTitle>
             <CardDescription>
-              Manage user roles and daily assignment limits.
+              Manage user roles, daily assignment limits, and view activity.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -83,7 +83,12 @@ export default async function AdminUsersPage() {
                     <TableHead>Email</TableHead>
                     <TableHead className="w-[180px]">Role</TableHead>
                     <TableHead className="w-[150px]">Daily Limit</TableHead>
-                    <TableHead className="w-[150px] text-center">Subscribed Today</TableHead>
+                    <TableHead className="w-[150px] text-center">
+                      Subscribed (Today)
+                    </TableHead>
+                    <TableHead className="w-[150px] text-center">
+                      Subscribed (Total)
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -116,10 +121,21 @@ export default async function AdminUsersPage() {
                           </span>
                         )}
                       </TableCell>
-                       <TableCell className="text-center">
+                      <TableCell className="text-center">
                         {u.role === 'member' ? (
                           <span className="font-medium">
                             {u.subscribed_today_count}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">
+                            -
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {u.role === 'member' ? (
+                          <span className="font-medium">
+                            {u.subscribed_total_count}
                           </span>
                         ) : (
                           <span className="text-sm text-muted-foreground">
