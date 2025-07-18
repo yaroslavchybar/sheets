@@ -1,8 +1,7 @@
 "use client";
 
 import * as React from "react";
-import type { Task, User } from "@/lib/types";
-import { getTasks, updateTaskStatus } from "@/services/google-sheets";
+import type { Task, AppUser } from "@/lib/types";
 import {
   Table,
   TableBody,
@@ -22,12 +21,11 @@ import {
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { format, parseISO } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "./ui/skeleton";
 
 interface SheetTableProps {
-  user: User;
+  user: AppUser;
 }
 
 export function SheetTable({ user }: SheetTableProps) {
@@ -36,39 +34,12 @@ export function SheetTable({ user }: SheetTableProps) {
   const { toast } = useToast();
 
   React.useEffect(() => {
-    const fetchTasks = async () => {
-      setIsLoading(true);
-      const fetchedTasks = await getTasks();
-      setTasks(fetchedTasks);
-      setIsLoading(false);
-    };
-    fetchTasks();
+    // We will implement the task fetching logic here later
+    setIsLoading(false);
   }, []);
 
   const handleStatusChange = async (taskId: string, newStatus: Task["status"]) => {
-    const originalTasks = [...tasks];
-    const taskToUpdate = tasks.find((task) => task.id === taskId);
-    
-    if (!taskToUpdate || !taskToUpdate.rowNumber) return;
-
-    // Optimistically update UI
-    setTasks((prevTasks) =>
-      prevTasks.map((task) =>
-        task.id === taskId ? { ...task, status: newStatus } : task
-      )
-    );
-
-    const success = await updateTaskStatus(taskToUpdate.rowNumber, newStatus);
-    
-    if (!success) {
-      // Revert on failure
-      setTasks(originalTasks);
-      toast({
-        variant: "destructive",
-        title: "Update Failed",
-        description: "Could not update the task status in Google Sheets.",
-      });
-    }
+    // Logic to be implemented
   };
 
   const handleCheckboxChange = (taskId: string, checked: boolean) => {
@@ -99,6 +70,11 @@ export function SheetTable({ user }: SheetTableProps) {
 
   return (
     <div className="w-full rounded-md border">
+        {tasks.length === 0 ? (
+            <div className="p-4 text-center text-muted-foreground">
+                No tasks assigned for today.
+            </div>
+        ) : (
       <Table>
         <TableHeader>
           <TableRow>
@@ -111,7 +87,7 @@ export function SheetTable({ user }: SheetTableProps) {
         </TableHeader>
         <TableBody>
           {tasks.map((task) => {
-            const isOwner = user.role === 'admin' || user.name === task.assignee.name;
+            const isOwner = user.role === 'admin' || user.email === task.assignee.email;
             return (
               <TableRow key={task.id} className={cn(!isOwner && "text-muted-foreground/70")}>
                 <TableCell>
@@ -155,12 +131,13 @@ export function SheetTable({ user }: SheetTableProps) {
                         </Badge>
                     )}
                 </TableCell>
-                <TableCell className="text-right">{format(parseISO(task.dueDate), 'MMM d, yyyy')}</TableCell>
+                <TableCell className="text-right">{task.dueDate}</TableCell>
               </TableRow>
             );
           })}
         </TableBody>
       </Table>
+        )}
     </div>
   );
 }
