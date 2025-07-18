@@ -63,7 +63,7 @@ export async function getTasks(): Promise<Task[]> {
     const sheets = getGoogleSheetsClient();
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: GOOGLE_SHEET_ID,
-      range: 'Tasks!A2:E', 
+      range: 'damp_data!A2:E', 
     });
 
     const rows = response.data.values;
@@ -110,7 +110,7 @@ export async function updateTaskStatus(rowNumber: number, status: Task['status']
     const sheets = getGoogleSheetsClient();
     await sheets.spreadsheets.values.update({
       spreadsheetId: GOOGLE_SHEET_ID,
-      range: `Tasks!D${rowNumber}`, // Column D for Status
+      range: `damp_data!D${rowNumber}`, // Column D for Status
       valueInputOption: 'USER_ENTERED',
       requestBody: {
         values: [[status]],
