@@ -1,6 +1,5 @@
 "use client";
 
-import { sheetData } from "@/data/sheet-data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SheetTable } from "@/components/sheet-table";
 import { UserNav } from "@/components/user-nav";
@@ -32,7 +31,7 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <SheetTable data={sheetData} user={user} />
+            <SheetTable user={user} />
           </CardContent>
         </Card>
       </main>

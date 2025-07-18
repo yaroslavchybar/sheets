@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import type { Task, User } from "@/lib/types";
+import { getTasks, updateTaskStatus } from "@/services/google-sheets";
 import {
   Table,
   TableBody,
@@ -22,21 +23,52 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { format, parseISO } from 'date-fns';
+import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from "./ui/skeleton";
 
 interface SheetTableProps {
-  data: Task[];
   user: User;
 }
 
-export function SheetTable({ data, user }: SheetTableProps) {
-  const [tasks, setTasks] = React.useState<Task[]>(data);
+export function SheetTable({ user }: SheetTableProps) {
+  const [tasks, setTasks] = React.useState<Task[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const { toast } = useToast();
 
-  const handleStatusChange = (taskId: string, status: Task["status"]) => {
+  React.useEffect(() => {
+    const fetchTasks = async () => {
+      setIsLoading(true);
+      const fetchedTasks = await getTasks();
+      setTasks(fetchedTasks);
+      setIsLoading(false);
+    };
+    fetchTasks();
+  }, []);
+
+  const handleStatusChange = async (taskId: string, newStatus: Task["status"]) => {
+    const originalTasks = [...tasks];
+    const taskToUpdate = tasks.find((task) => task.id === taskId);
+    
+    if (!taskToUpdate || !taskToUpdate.rowNumber) return;
+
+    // Optimistically update UI
     setTasks((prevTasks) =>
       prevTasks.map((task) =>
-        task.id === taskId ? { ...task, status } : task
+        task.id === taskId ? { ...task, status: newStatus } : task
       )
     );
+
+    const success = await updateTaskStatus(taskToUpdate.rowNumber, newStatus);
+    
+    if (!success) {
+      // Revert on failure
+      setTasks(originalTasks);
+      toast({
+        variant: "destructive",
+        title: "Update Failed",
+        description: "Could not update the task status in Google Sheets.",
+      });
+    }
   };
 
   const handleCheckboxChange = (taskId: string, checked: boolean) => {
@@ -49,6 +81,21 @@ export function SheetTable({ data, user }: SheetTableProps) {
     if (status === "In Progress") return "secondary";
     return "outline";
   };
+
+  if (isLoading) {
+    return (
+      <div className="w-full rounded-md border p-4">
+        <div className="space-y-3">
+          <Skeleton className="h-5 w-2/5" />
+          <div className="space-y-2">
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-8 w-full" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full rounded-md border">

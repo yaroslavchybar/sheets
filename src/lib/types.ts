@@ -1,5 +1,6 @@
 export type Task = {
   id: string;
+  rowNumber?: number; // To track the row in Google Sheets for updates
   task: string;
   assignee: {
     name: string;
