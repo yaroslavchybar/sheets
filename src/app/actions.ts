@@ -4,11 +4,25 @@ import {cookies} from 'next/headers';
 import {redirect} from 'next/navigation';
 import type {AppUser} from '@/lib/types';
 
+// Helper to create a hash from a string (for simple unique ID generation)
+function hashCode(str: string): number {
+  var hash = 0,
+    i,
+    chr;
+  if (str.length === 0) return hash;
+  for (i = 0; i < str.length; i++) {
+    chr = str.charCodeAt(i);
+    hash = (hash << 5) - hash + chr;
+    hash |= 0; // Convert to 32bit integer
+  }
+  return hash;
+}
+
 export async function createSession(email: string) {
   // In a real app, you would verify the user here (e.g., check password, send magic link)
   // For this demo, we'll create a session for any provided email.
 
-  const id = email.hashCode(); // Simple way to generate a numeric ID from a string
+  const id = hashCode(email); // Use the standalone function
   const username = email.split('@')[0];
   const initial = username.charAt(0).toUpperCase();
 
@@ -45,19 +59,3 @@ export async function deleteSession() {
   cookies().delete('session');
   redirect('/login');
 }
-
-// Helper to create a hash from a string (for simple unique ID generation)
-Object.defineProperty(String.prototype, 'hashCode', {
-  value: function () {
-    var hash = 0,
-      i,
-      chr;
-    if (this.length === 0) return hash;
-    for (i = 0; i < this.length; i++) {
-      chr = this.charCodeAt(i);
-      hash = (hash << 5) - hash + chr;
-      hash |= 0; // Convert to 32bit integer
-    }
-    return hash;
-  },
-});
