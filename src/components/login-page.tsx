@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,7 @@ import { Sheet } from "lucide-react";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import Image from "next/image";
 
 export default function LoginPage() {
@@ -35,13 +36,14 @@ export default function LoginPage() {
   
   const handleGitHubLogin = async () => {
     setGitHubLoading(true);
+    const redirectTo = `${window.location.origin}/auth/callback`;
     await supabase.auth.signInWithOAuth({
       provider: 'github',
       options: {
-        redirectTo: location.origin,
+        redirectTo: redirectTo,
       },
     });
-    setGitHubLoading(false);
+    // No need to setGitHubLoading(false) here as the user will be redirected.
   };
 
   return (
@@ -54,7 +56,7 @@ export default function LoginPage() {
           <CardTitle className="text-2xl">SheetFlow</CardTitle>
           <CardDescription>
             Sign in to access your dashboard.
-          </CardDescription>
+          </Description>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="grid gap-4">
