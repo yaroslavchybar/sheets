@@ -23,15 +23,14 @@ export async function getDailyTasksForMember(
     return [];
   }
 
-  // Fetch all available accounts from the sheet to cross-reference
-  const allAccounts = await getAvailableAccounts();
-  if (!allAccounts || allAccounts.length === 0) {
-    return [];
-  }
-
-  // 2. If assignments already exist, fetch their details and return them.
-  // This ensures that if an admin reduces the limit, the user sees the correct remaining tasks.
+  // 2. If assignments already exist, fetch their details from the sheet and return them.
+  // This is the most reliable way to ensure we show the correct, persisted tasks.
   if (existingAssignments.length > 0) {
+    const allAccounts = await getAvailableAccounts();
+    if (!allAccounts || allAccounts.length === 0) {
+      return []; // Cannot get details if sheet is empty
+    }
+
     const assignedIds = new Set(existingAssignments.map((a) => a.instagram_id));
     return allAccounts.filter((acc) => assignedIds.has(acc.id));
   }
@@ -52,6 +51,12 @@ export async function getDailyTasksForMember(
   
   if (assignmentsPerMember === 0) {
     return []; // User is assigned 0 tasks
+  }
+
+  // Get all accounts from the sheet to choose from.
+  const allAccounts = await getAvailableAccounts();
+  if (!allAccounts || allAccounts.length === 0) {
+    return [];
   }
 
   // Get all accounts assigned to *any* user today to ensure no duplicates are picked.
