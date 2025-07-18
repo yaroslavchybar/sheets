@@ -40,17 +40,17 @@ FOR ALL USING (
     EXISTS (
         SELECT 1 
         FROM user_roles ur 
-        JOIN auth.users u ON ur.user_id = u.id 
-        WHERE u.id = auth.uid() AND ur.role = 'admin'
+        WHERE ur.user_id = auth.uid() AND ur.role = 'admin'
     )
 );
+
 
 -- Trigger to automatically create a role entry for new users
 CREATE OR REPLACE FUNCTION handle_new_user_role()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO user_roles (user_id)
-    VALUES (NEW.id);
+    INSERT INTO user_roles (user_id, role)
+    VALUES (NEW.id, 'member');
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -58,3 +58,12 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE TRIGGER on_auth_user_created_role
 AFTER INSERT ON auth.users
 FOR EACH ROW EXECUTE FUNCTION handle_new_user_role();
+
+-- Grant usage on the public schema to necessary roles
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+
+-- Grant insert permissions on the user_roles table
+GRANT INSERT ON TABLE public.user_roles TO anon, authenticated;
+
+-- Grant select and update permissions for specific columns
+GRANT SELECT, UPDATE (role) ON TABLE public.user_roles TO authenticated;
