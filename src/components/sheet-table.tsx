@@ -10,6 +10,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from './ui/skeleton';
@@ -30,7 +41,7 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
     setTasks(initialTasks);
   }, [initialTasks]);
 
-  const handleCheckboxChange = async (
+  const handleSubscriptionConfirm = async (
     rowNumber: number,
     checked: boolean
   ) => {
@@ -94,14 +105,37 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
             {tasks.map((task) => (
               <TableRow key={task.rowNumber}>
                 <TableCell>
-                  <Checkbox
-                    id={`check-${task.rowNumber}`}
-                    checked={task.isSubscribed}
-                    onCheckedChange={(checked) =>
-                      handleCheckboxChange(task.rowNumber, !!checked)
-                    }
-                    aria-label={`Mark account ${task.userName} as subscribed`}
-                  />
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Checkbox
+                        id={`check-${task.rowNumber}`}
+                        checked={task.isSubscribed}
+                        aria-label={`Mark account ${task.userName} as subscribed`}
+                      />
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action will mark the account{' '}
+                          <span className="font-semibold text-foreground">
+                            {task.userName}
+                          </span>{' '}
+                          as subscribed. This cannot be undone from the app.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() =>
+                            handleSubscriptionConfirm(task.rowNumber, true)
+                          }
+                        >
+                          Confirm
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </TableCell>
                 <TableCell className="font-medium">{task.userName}</TableCell>
                 <TableCell>{task.fullName}</TableCell>
