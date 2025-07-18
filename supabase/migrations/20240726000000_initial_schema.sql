@@ -1,107 +1,57 @@
--- Create a table for public user roles
+-- Create user_roles table
 CREATE TABLE IF NOT EXISTS public.user_roles (
-    user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE NOT NULL,
-    role text CHECK (role IN ('admin', 'member', 'editor', 'moderator')) NOT NULL,
-    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
-    updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+    user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    role TEXT NOT NULL CHECK (role IN ('admin', 'member', 'editor', 'moderator'))
 );
 
--- Comments for clarity
-COMMENT ON TABLE public.user_roles IS 'Stores the role for each user.';
-
--- Ensure postgres role (used by migrations) can reference auth.users table
--- This is crucial for the foreign key constraint to work properly.
+-- Seed an admin user
+-- Replace with the actual user UUID from your Supabase auth dashboard
 DO $$
 BEGIN
-    BEGIN
-        GRANT REFERENCES ON TABLE auth.users TO postgres;
-    EXCEPTION WHEN duplicate_object THEN
-        RAISE NOTICE 'REFERENCES permission on auth.users already granted to postgres.';
-    END;
+  IF NOT EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = 'c1c5e6f3-1111-2222-3333-a3d8f1e5b1a3') THEN
+    INSERT INTO public.user_roles (user_id, role) 
+    VALUES ('c1c5e6f3-1111-2222-3333-a3d8f1e5b1a3', 'admin');
+  END IF;
 END $$;
 
--- Drop existing foreign key to re-create it correctly, ensuring it references auth.users
-ALTER TABLE public.user_roles DROP CONSTRAINT IF EXISTS user_roles_user_id_fkey;
-ALTER TABLE public.user_roles ADD CONSTRAINT user_roles_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+-- Ensure postgres role can reference auth.users for foreign key constraints
+GRANT REFERENCES ON auth.users TO postgres;
 
--- Create an index for faster lookups on user_id
+-- Alter user_roles table to ensure proper foreign key constraint
+ALTER TABLE public.user_roles 
+DROP CONSTRAINT IF EXISTS user_roles_user_id_fkey,
+ADD CONSTRAINT user_roles_user_id_fkey 
+FOREIGN KEY (user_id) 
+REFERENCES auth.users(id) 
+ON DELETE CASCADE;
+
+-- Safely create index if it doesn't already exist
 CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON public.user_roles(user_id);
+
 
 -- Enable Row Level Security on the table
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 
--- Remove all previous policies to start fresh
-DROP POLICY IF EXISTS "Users can manage their own roles" ON public.user_roles;
-DROP POLICY IF EXISTS "Users can view their own roles" ON public.user_roles;
+-- Drop existing policies to avoid conflicts
+DROP POLICY IF EXISTS "Users can view and manage their own roles" ON public.user_roles;
 DROP POLICY IF EXISTS "Admins can manage all roles" ON public.user_roles;
-DROP POLICY IF EXISTS "Admins can view all roles" ON public.user_roles;
-DROP POLICY IF EXISTS "Select own roles" ON public.user_roles;
-DROP POLICY IF EXISTS "Insert own roles" ON public.user_roles;
-DROP POLICY IF EXISTS "Update own roles" ON public.user_roles;
-DROP POLICY IF EXISTS "Delete own roles" ON public.user_roles;
 
-
--- DEFINITIVE RLS POLICIES
-
--- Policy 1: Allow any authenticated user to view their OWN role.
--- This is required for the application to check the user's permissions for the UI.
-CREATE POLICY "Users can view their own role" ON public.user_roles
-FOR SELECT
+-- Policy 1: Allows any authenticated user to see their own role.
+CREATE POLICY "Users can view and manage their own roles"
+ON public.user_roles
+FOR ALL
 TO authenticated
-USING (
-  user_id = auth.uid()
-);
+USING (user_id = auth.uid());
 
--- Policy 2: Allow admins to view, add, update, and delete ANY user's role.
--- This is the key policy that grants admins full control on the User Management page.
-CREATE POLICY "Admins can manage all roles" ON public.user_roles
+-- Policy 2: Allows users with the 'admin' role to see and manage all roles.
+CREATE POLICY "Admins can manage all roles"
+ON public.user_roles
 FOR ALL
 TO authenticated
 USING (
-  EXISTS (
-    SELECT 1
-    FROM public.user_roles
-    WHERE user_id = auth.uid() AND role = 'admin'
-  )
-)
-WITH CHECK (
-  EXISTS (
-    SELECT 1
-    FROM public.user_roles
-    WHERE user_id = auth.uid() AND role = 'admin'
-  )
+    EXISTS (
+        SELECT 1
+        FROM public.user_roles
+        WHERE user_id = auth.uid() AND role = 'admin'
+    )
 );
-
--- Function to automatically create a user_roles entry for new users
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER SET search_path = public
-AS $$
-BEGIN
-  INSERT INTO public.user_roles (user_id, role)
-  VALUES (new.id, 'member'); -- Default role is 'member'
-  RETURN new;
-END;
-$$;
-
--- Trigger to execute the function after a new user signs up in Supabase Auth
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-
--- Seed the admin user if it exists in auth.users but not in user_roles
--- Replace with your actual admin email
-DO $$
-DECLARE
-    admin_user_id uuid;
-BEGIN
-    SELECT id INTO admin_user_id FROM auth.users WHERE email = 'admin@sheetflow.app';
-    IF admin_user_id IS NOT NULL THEN
-        INSERT INTO public.user_roles (user_id, role)
-        VALUES (admin_user_id, 'admin')
-        ON CONFLICT (user_id) 
-        DO UPDATE SET role = 'admin';
-    END IF;
-END $$;
