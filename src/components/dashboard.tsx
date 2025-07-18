@@ -25,7 +25,7 @@ export default function Dashboard({ user: appUser }: { user: AppUser }) {
         // This fallback may not be strictly necessary anymore but is good for safety.
         setTasksUser({
           email: appUser.email || '',
-          name: appUser.username || appUser.firstName,
+          name: appUser.username || appUser.email.split('@')[0],
           avatar: appUser.photoUrl,
           role: 'member', // Default to member if not found in sheet
         });
@@ -41,6 +41,13 @@ export default function Dashboard({ user: appUser }: { user: AppUser }) {
       </div>
     );
   }
+  
+  const pageUser = {
+    id: appUser.id,
+    email: appUser.email!,
+    username: appUser.username,
+    photoUrl: appUser.photoUrl,
+  }
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -50,7 +57,7 @@ export default function Dashboard({ user: appUser }: { user: AppUser }) {
           <span>SheetFlow</span>
         </div>
         <div className="ml-auto">
-          <UserNav appUser={appUser} />
+          <UserNav user={pageUser} />
         </div>
       </header>
       <main className="flex-1 p-4 md:p-6 lg:p-8">
