@@ -11,10 +11,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LogOut, User as UserIcon } from 'lucide-react';
+import { LogOut, User as UserIcon, Shield } from 'lucide-react';
 import type { AppUser } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export function UserNav({ appUser }: { appUser: AppUser }) {
   const router = useRouter();
@@ -56,6 +57,14 @@ export function UserNav({ appUser }: { appUser: AppUser }) {
             <UserIcon className="mr-2 h-4 w-4" />
             <span>Profile</span>
           </DropdownMenuItem>
+          {appUser.role === 'admin' && (
+             <Link href="/admin/users" passHref>
+                <DropdownMenuItem>
+                    <Shield className="mr-2 h-4 w-4" />
+                    <span>User Management</span>
+                </DropdownMenuItem>
+            </Link>
+          )}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>

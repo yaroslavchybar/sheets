@@ -24,4 +24,5 @@ export type AppUser = {
   email: string;
   username?: string;
   photoUrl: string;
+  role?: 'admin' | 'member' | 'editor' | 'moderator';
 };
