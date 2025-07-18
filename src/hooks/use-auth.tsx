@@ -21,7 +21,7 @@ const adminUser: User = {
 const memberUser: User = {
     name: 'Alice',
     email: 'alice@sheetflow.app',
-    avatar: 'https://placehold.co/40x40/212529/F8F9FA/png?text=A',
+    avatar: 'https://placehold.co/40x40/E9ECEF/212529/png?text=A',
     role: 'member',
 };
 
@@ -30,6 +30,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
 
   const login = (role: 'admin' | 'member') => {
+    // In a real app, this would involve a call to an authentication service.
+    // For this demo, we'll just set the user based on the selected role.
     if (role === 'admin') {
       setUser(adminUser);
     } else {
