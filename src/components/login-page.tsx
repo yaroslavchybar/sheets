@@ -9,7 +9,7 @@ import { Sheet } from "lucide-react";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 
 export default function LoginPage() {
@@ -56,7 +56,7 @@ export default function LoginPage() {
           <CardTitle className="text-2xl">SheetFlow</CardTitle>
           <CardDescription>
             Sign in to access your dashboard.
-          </Description>
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="grid gap-4">
