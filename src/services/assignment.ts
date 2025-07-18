@@ -10,7 +10,34 @@ export async function getDailyTasksForMember(
   const supabase = createClient();
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
-  // 1. Get the assignment limit for this specific user
+  // 1. Check if the user already has assignments for today in our database.
+  // This is the source of truth.
+  const { data: existingAssignments, error: existingError } = await supabase
+    .from('daily_assignments')
+    .select('instagram_id')
+    .eq('user_id', userId)
+    .eq('assignment_date', today);
+
+  if (existingError) {
+    console.error('Error fetching existing assignments:', existingError);
+    return [];
+  }
+
+  // Fetch all available accounts from the sheet to cross-reference
+  const allAccounts = await getAvailableAccounts();
+  if (!allAccounts || allAccounts.length === 0) {
+    return [];
+  }
+
+  // 2. If assignments already exist, fetch their details and return them.
+  // This ensures that if an admin reduces the limit, the user sees the correct remaining tasks.
+  if (existingAssignments.length > 0) {
+    const assignedIds = new Set(existingAssignments.map((a) => a.instagram_id));
+    return allAccounts.filter((acc) => assignedIds.has(acc.id));
+  }
+
+  // 3. If no assignments exist, create new ones.
+  // Get the assignment limit for this specific user.
   const { data: userRole, error: userRoleError } = await supabase
     .from('user_roles')
     .select('daily_assignments_limit')
@@ -27,28 +54,7 @@ export async function getDailyTasksForMember(
     return []; // User is assigned 0 tasks
   }
 
-  // 2. Check if the user already has assignments for today
-  const { data: existingAssignments, error: existingError } = await supabase
-    .from('daily_assignments')
-    .select('instagram_id')
-    .eq('user_id', userId)
-    .eq('assignment_date', today);
-
-  if (existingError) {
-    console.error('Error fetching existing assignments:', existingError);
-    return [];
-  }
-
-  const allAccounts = await getAvailableAccounts();
-
-  if (existingAssignments.length > 0) {
-    // User already has tasks, fetch them using the stored IDs
-    const assignedIds = new Set(existingAssignments.map((a) => a.instagram_id));
-    return allAccounts.filter((acc) => assignedIds.has(acc.id));
-  }
-
-  // 3. If no assignments, create new ones.
-  // First, get all accounts assigned to *any* user today to ensure no duplicates are picked.
+  // Get all accounts assigned to *any* user today to ensure no duplicates are picked.
   const { data: allTodayAssignments, error: allTodayError } = await supabase
     .from('daily_assignments')
     .select('instagram_id')
