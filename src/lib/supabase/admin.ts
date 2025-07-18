@@ -137,5 +137,6 @@ export async function updateUserAssignmentLimit(
   }
 
   revalidatePath('/admin/users');
+  revalidatePath('/'); // Revalidate the member dashboard
   return { error: null };
 }
