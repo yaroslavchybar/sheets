@@ -93,7 +93,7 @@ export default function LoginPage() {
       toast({
         title: 'Check your email',
         description:
-          'We\'ve sent you a confirmation link to verify your email address.',
+          "We've sent you a confirmation link to verify your email address.",
       });
       form.reset();
     }
