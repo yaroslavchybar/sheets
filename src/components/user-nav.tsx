@@ -11,18 +11,44 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LogOut, User as UserIcon, Shield } from 'lucide-react';
+import { LogOut, User as UserIcon, Shield, Loader2 } from 'lucide-react';
 import type { AppUser } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
 type UserNavProps = {
-  user: AppUser;
+  user: Omit<AppUser, 'role'>;
 };
 
 export function UserNav({ user }: UserNavProps) {
   const router = useRouter();
+  const [role, setRole] = useState<AppUser['role'] | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      setIsLoading(true);
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!error && data) {
+        setRole(data.role as AppUser['role']);
+      } else {
+        setRole('member'); // Default role if not found
+      }
+      setIsLoading(false);
+    };
+
+    if (user.id) {
+      fetchUserRole();
+    }
+  }, [user.id]);
 
   const handleLogout = async () => {
     const supabase = createClient();
@@ -62,13 +88,20 @@ export function UserNav({ user }: UserNavProps) {
             <UserIcon className="mr-2 h-4 w-4" />
             <span>Profile</span>
           </DropdownMenuItem>
-          {user.role === 'admin' && (
-             <Link href="/admin/users" passHref>
-                <DropdownMenuItem>
-                    <Shield className="mr-2 h-4 w-4" />
-                    <span>User Management</span>
-                </DropdownMenuItem>
-            </Link>
+          {isLoading ? (
+            <DropdownMenuItem disabled>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <span>Loading...</span>
+            </DropdownMenuItem>
+          ) : (
+            role === 'admin' && (
+               <Link href="/admin/users" passHref>
+                  <DropdownMenuItem>
+                      <Shield className="mr-2 h-4 w-4" />
+                      <span>User Management</span>
+                  </DropdownMenuItem>
+              </Link>
+            )
           )}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />

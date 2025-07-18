@@ -17,7 +17,8 @@ export async function getAllUsersWithRoles() {
       users (
         email
       )
-    `);
+    `)
+    .order('email', { referencedTable: 'users', ascending: true });
 
   if (error) {
     console.error('Error fetching users with roles:', error);
