@@ -8,7 +8,7 @@ import type { TelegramUser } from '@/lib/types';
 import { useEffect } from 'react';
 
 // IMPORTANT: Replace with your bot's username from @BotFather
-const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'YOUR_BOT_USERNAME_HERE';
+const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'Sheets';
 
 export default function LoginPage() {
   
