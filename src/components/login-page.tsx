@@ -1,29 +1,42 @@
 'use client';
 
-import Script from 'next/script';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { createSession } from '@/app/actions';
-import type { TelegramUser } from '@/lib/types';
-import { useEffect } from 'react';
+import { useState } from 'react';
 
-// IMPORTANT: Replace with your bot's username from @BotFather
-const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'Sheets';
+const formSchema = z.object({
+  email: z.string().email({ message: "Please enter a valid email address." }),
+});
 
 export default function LoginPage() {
-  
-  useEffect(() => {
-    // Define the callback function that the Telegram script will call globally
-    (window as any).onTelegramAuth = (user: TelegramUser) => {
-      // Call the server action to verify and create a session
-      createSession(user).catch(console.error);
-    };
+  const [isLoading, setIsLoading] = useState(false);
 
-    // Cleanup the global function when the component unmounts
-    return () => {
-      delete (window as any).onTelegramAuth;
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      email: "",
+    },
+  });
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsLoading(true);
+    try {
+      await createSession(values.email);
+    } catch (error) {
+      console.error(error);
+      // You could show a toast notification here for the user
+    } finally {
+      setIsLoading(false);
     }
-  }, []);
+  }
   
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/50">
@@ -33,20 +46,34 @@ export default function LoginPage() {
             <Sheet className="h-8 w-8" />
           </div>
           <CardTitle className="text-2xl">SheetFlow</CardTitle>
-          <CardDescription>Please sign in with your Telegram account.</CardDescription>
+          <CardDescription>Please sign in to continue.</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col items-center justify-center">
-           <div id="telegram-login-button" className="mt-4">
-             {/* This script will find an element with `data-telegram-login` and render the button there. */}
-            <Script
-              async
-              src="https://telegram.org/js/telegram-widget.js?22"
-              data-telegram-login={BOT_USERNAME}
-              data-size="large"
-              data-onauth="onTelegramAuth(user)"
-              data-request-access="write"
-            />
-          </div>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <Label htmlFor="email">Email</Label>
+                    <FormControl>
+                      <Input
+                        id="email"
+                        placeholder="you@example.com"
+                        type="email"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? 'Signing In...' : 'Sign In'}
+              </Button>
+            </form>
+          </Form>
         </CardContent>
       </Card>
     </div>

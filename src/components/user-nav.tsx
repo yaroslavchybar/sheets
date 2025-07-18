@@ -13,9 +13,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { LogOut, User as UserIcon } from 'lucide-react';
 import { deleteSession } from '@/app/actions';
-import type { AppUser, TelegramUser } from '@/lib/types';
+import type { AppUser } from '@/lib/types';
 
-export function UserNav({ user, appUser }: { user: TelegramUser; appUser: AppUser }) {
+export function UserNav({ user, appUser }: { user: AppUser; appUser: AppUser }) {
   const handleLogout = async () => {
     await deleteSession();
   };
@@ -24,7 +24,7 @@ export function UserNav({ user, appUser }: { user: TelegramUser; appUser: AppUse
     return null;
   }
   
-  const displayName = user.username || `${user.firstName} ${user.lastName || ''}`.trim();
+  const displayName = user.username || user.firstName;
   const fallback = displayName.charAt(0).toUpperCase();
 
   return (
@@ -42,7 +42,7 @@ export function UserNav({ user, appUser }: { user: TelegramUser; appUser: AppUse
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">{displayName}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              Telegram ID: {user.id}
+              {user.email}
             </p>
           </div>
         </DropdownMenuLabel>

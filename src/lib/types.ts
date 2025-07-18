@@ -18,20 +18,10 @@ export type User = {
   role: 'admin' | 'member';
 };
 
-// Represents the user data from Telegram widget
-export type TelegramUser = {
-  id: number;
-  first_name: string;
-  last_name?: string;
-  username?: string;
-  photo_url: string;
-  auth_date: number;
-  hash: string;
-};
-
 // Represents the user object for our app's session
 export type AppUser = {
   id: number;
+  email: string;
   firstName: string;
   lastName?: string;
   username?: string;

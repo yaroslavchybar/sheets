@@ -2,35 +2,22 @@
 
 import {cookies} from 'next/headers';
 import {redirect} from 'next/navigation';
-import {createHmac} from 'crypto';
-import type {TelegramUser} from '@/lib/types';
+import type {AppUser} from '@/lib/types';
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
-if (!BOT_TOKEN) {
-  throw new Error('TELEGRAM_BOT_TOKEN environment variable is not set!');
-}
+export async function createSession(email: string) {
+  // In a real app, you would verify the user here (e.g., check password, send magic link)
+  // For this demo, we'll create a session for any provided email.
 
-const SECRET_KEY = createHmac('sha256', 'WebAppData').update(BOT_TOKEN).digest();
+  const id = email.hashCode(); // Simple way to generate a numeric ID from a string
+  const username = email.split('@')[0];
+  const initial = username.charAt(0).toUpperCase();
 
-export async function createSession(user: TelegramUser) {
-  const dataCheckString = Object.keys(user)
-    .filter((key) => key !== 'hash')
-    .sort()
-    .map((key) => `${key}=${user[key as keyof Omit<TelegramUser, 'hash'>]}`)
-    .join('\n');
-
-  const hash = createHmac('sha256', SECRET_KEY).update(dataCheckString).digest('hex');
-
-  if (hash !== user.hash) {
-    throw new Error('Invalid hash, authentication failed.');
-  }
-
-  const sessionUser = {
-    id: user.id,
-    firstName: user.first_name,
-    lastName: user.last_name,
-    username: user.username,
-    photoUrl: user.photo_url,
+  const sessionUser: AppUser = {
+    id: id,
+    email: email,
+    username: username,
+    firstName: username.charAt(0).toUpperCase() + username.slice(1),
+    photoUrl: `https://placehold.co/40x40/212529/F8F9FA/png?text=${initial}`,
   };
 
   cookies().set('session', JSON.stringify(sessionUser), {
@@ -44,7 +31,7 @@ export async function createSession(user: TelegramUser) {
   redirect('/');
 }
 
-export async function getSession() {
+export async function getSession(): Promise<AppUser | null> {
   const sessionCookie = cookies().get('session')?.value;
   if (!sessionCookie) return null;
   try {
@@ -58,3 +45,19 @@ export async function deleteSession() {
   cookies().delete('session');
   redirect('/login');
 }
+
+// Helper to create a hash from a string (for simple unique ID generation)
+Object.defineProperty(String.prototype, 'hashCode', {
+  value: function () {
+    var hash = 0,
+      i,
+      chr;
+    if (this.length === 0) return hash;
+    for (i = 0; i < this.length; i++) {
+      chr = this.charCodeAt(i);
+      hash = (hash << 5) - hash + chr;
+      hash |= 0; // Convert to 32bit integer
+    }
+    return hash;
+  },
+});
