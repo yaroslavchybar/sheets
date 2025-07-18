@@ -3,7 +3,7 @@
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
-import type { AppSettings } from '../types';
+import type { AppSettings, UserWithRole } from '../types';
 
 // This function requires an admin-level Supabase client to fetch all users.
 // We create a dedicated admin client here using the service role key.
@@ -20,7 +20,7 @@ async function getAdminSupabase() {
   );
 }
 
-export async function getAllUsersWithRoles() {
+export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
   const supabaseAdmin = await getAdminSupabase();
   const supabase = createServerClient();
 
@@ -34,23 +34,33 @@ export async function getAllUsersWithRoles() {
   }
 
   // 2. Fetch all roles from our user_roles table
-  const { data: roles, error: rolesError } = await supabase
+  const { data: rolesData, error: rolesError } = await supabase
     .from('user_roles')
-    .select('user_id, role');
+    .select('user_id, role, daily_assignments_limit');
 
   if (rolesError) {
     console.error('Error fetching roles:', rolesError);
+    return [];
   }
 
-  // Create a map of user_id -> role for easy lookup
-  const rolesMap = new Map(roles?.map((r) => [r.user_id, r.role]) || []);
+  // Create a map of user_id -> role info for easy lookup
+  const rolesMap = new Map(
+    rolesData?.map((r) => [
+      r.user_id,
+      { role: r.role, daily_assignments_limit: r.daily_assignments_limit },
+    ]) || []
+  );
 
   // 3. Combine the data
-  const usersWithRoles = authData.users.map((user) => ({
-    id: user.id,
-    email: user.email!,
-    role: rolesMap.get(user.id) || 'member',
-  }));
+  const usersWithRoles = authData.users.map((user) => {
+    const roleInfo = rolesMap.get(user.id);
+    return {
+      id: user.id,
+      email: user.email!,
+      role: roleInfo?.role || 'member',
+      daily_assignments_limit: roleInfo?.daily_assignments_limit ?? 10,
+    };
+  });
 
   usersWithRoles.sort((a, b) => a.email.localeCompare(b.email));
 
@@ -96,44 +106,36 @@ export async function updateUserRole(
   return { error: null };
 }
 
-export async function getSettings(): Promise<AppSettings> {
+export async function updateUserAssignmentLimit(
+  userId: string,
+  limit: number
+) {
   const supabase = createServerClient();
-  const { data, error } = await supabase.from('app_settings').select('*');
+
+  // Check if the current user is an admin before proceeding
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: { message: 'You must be logged in to update settings.' } };
+  }
+  const { data: adminProfile, error: adminError } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single();
+  if (adminError || adminProfile?.role !== 'admin') {
+    return { error: { message: 'You do not have permission to update settings.' } };
+  }
+
+  // Update the limit for the specified user
+  const { error } = await supabase
+    .from('user_roles')
+    .update({ daily_assignments_limit: limit })
+    .eq('user_id', userId);
 
   if (error) {
-    console.error('Error fetching settings:', error);
-    // Return default settings on error
-    return { daily_assignments_per_member: 10 };
+    return { error };
   }
 
-  const settings = data.reduce((acc, setting) => {
-    acc[setting.key] = setting.value;
-    return acc;
-  }, {} as any);
-  
-  // Ensure numeric values are parsed
-  settings.daily_assignments_per_member = parseInt(settings.daily_assignments_per_member, 10) || 10;
-
-  return settings;
-}
-
-export async function updateSettings(newSettings: Partial<AppSettings>) {
-  const supabase = createServerClient();
-
-  const updates = Object.entries(newSettings).map(([key, value]) =>
-    supabase
-      .from('app_settings')
-      .update({ value: String(value) })
-      .eq('key', key)
-  );
-  
-  const results = await Promise.all(updates);
-  const firstError = results.find(res => res.error);
-
-  if (firstError) {
-    return { error: firstError.error };
-  }
-  
-  revalidatePath('/admin/settings');
+  revalidatePath('/admin/users');
   return { error: null };
 }

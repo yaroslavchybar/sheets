@@ -42,3 +42,11 @@ export type InstagramAccount = {
 export type AppSettings = {
   daily_assignments_per_member: number;
 };
+
+// Represents a user with their role and settings for the admin page
+export type UserWithRole = {
+  id: string;
+  email: string;
+  role: 'admin' | 'member' | 'editor' | 'moderator';
+  daily_assignments_limit: number;
+}
