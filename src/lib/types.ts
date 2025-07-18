@@ -51,4 +51,5 @@ export type UserWithRole = {
   email: string;
   role: 'admin' | 'member' | 'editor' | 'moderator';
   daily_assignments_limit: number;
+  subscribed_today_count: number;
 }

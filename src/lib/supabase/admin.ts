@@ -23,6 +23,7 @@ async function getAdminSupabase() {
 export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
   const supabaseAdmin = await getAdminSupabase();
   const supabase = createServerClient();
+  const today = new Date().toISOString().split('T')[0];
 
   // 1. Fetch all users from Supabase Auth using the admin client
   const { data: authData, error: authError } =
@@ -43,7 +44,19 @@ export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
     return [];
   }
 
-  // Create a map of user_id -> role info for easy lookup
+  // 3. Fetch subscribed counts for today
+  const { data: subscribedData, error: subscribedError } = await supabase
+    .from('daily_assignments')
+    .select('user_id')
+    .eq('is_subscribed', true)
+    .eq('assignment_date', today);
+    
+  if (subscribedError) {
+    console.error('Error fetching subscribed counts:', subscribedError);
+    return [];
+  }
+
+  // Create a map of user_id -> role info
   const rolesMap = new Map(
     rolesData?.map((r) => [
       r.user_id,
@@ -51,7 +64,16 @@ export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
     ]) || []
   );
 
-  // 3. Combine the data
+  // Create a map of user_id -> subscribed count
+  const subscribedCountMap = new Map<string, number>();
+  if (subscribedData) {
+    for (const record of subscribedData) {
+      subscribedCountMap.set(record.user_id, (subscribedCountMap.get(record.user_id) || 0) + 1);
+    }
+  }
+
+
+  // 4. Combine the data
   const usersWithRoles = authData.users.map((user) => {
     const roleInfo = rolesMap.get(user.id);
     return {
@@ -59,6 +81,7 @@ export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
       email: user.email!,
       role: roleInfo?.role || 'member',
       daily_assignments_limit: roleInfo?.daily_assignments_limit ?? 10,
+      subscribed_today_count: subscribedCountMap.get(user.id) || 0,
     };
   });
 

@@ -82,7 +82,8 @@ export default async function AdminUsersPage() {
                   <TableRow>
                     <TableHead>Email</TableHead>
                     <TableHead className="w-[180px]">Role</TableHead>
-                    <TableHead className="w-[180px]">Daily Limit</TableHead>
+                    <TableHead className="w-[150px]">Daily Limit</TableHead>
+                    <TableHead className="w-[150px] text-center">Subscribed Today</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -110,7 +111,20 @@ export default async function AdminUsersPage() {
                             currentLimit={u.daily_assignments_limit}
                           />
                         ) : (
-                           <span className="text-sm text-muted-foreground">-</span>
+                          <span className="text-sm text-muted-foreground">
+                            -
+                          </span>
+                        )}
+                      </TableCell>
+                       <TableCell className="text-center">
+                        {u.role === 'member' ? (
+                          <span className="font-medium">
+                            {u.subscribed_today_count}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">
+                            -
+                          </span>
                         )}
                       </TableCell>
                     </TableRow>
