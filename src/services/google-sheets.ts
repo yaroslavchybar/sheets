@@ -38,8 +38,8 @@ export async function getUsers(currentUserEmail?: string | null): Promise<User[]
     });
 
     const rows = response.data.values;
-    if (rows && rows.length) {
-      // Filter out header row if present and any empty rows
+    if (rows && rows.length > 1) {
+      // Filter out header row and any empty rows
       return rows.slice(1).filter(row => row[0]).map((row): User => {
         const email = row[0].toLowerCase();
         const name = email.split('@')[0];
@@ -55,9 +55,10 @@ export async function getUsers(currentUserEmail?: string | null): Promise<User[]
     }
   } catch (err) {
     console.error('Error fetching users from Google Sheets:', err);
+    // Fall through to return the current user or an empty array
   }
 
-  // If the sheet is empty or fails, at least return the current user
+  // If the sheet is empty or fails, at least return the current user if available
   if (currentUserEmail) {
     const email = currentUserEmail.toLowerCase();
     const name = email.split('@')[0];
@@ -67,10 +68,10 @@ export async function getUsers(currentUserEmail?: string | null): Promise<User[]
       role: adminEmails.includes(email) ? 'admin' : 'member',
       name: name.charAt(0).toUpperCase() + name.slice(1),
       avatar: `https://placehold.co/40x40/E9ECEF/212529/png?text=${initial}`,
-    }]
+    }];
   }
 
-  return [];
+  return []; // Always return an array
 }
 
 export async function getTasks(): Promise<Task[]> {
