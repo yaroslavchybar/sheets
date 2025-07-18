@@ -22,13 +22,12 @@ interface SheetTableProps {
 
 export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
   const [tasks, setTasks] = React.useState<InstagramAccount[]>(initialTasks);
-  const [isLoading, setIsLoading] = React.useState(true);
+  const [isClient, setIsClient] = React.useState(false);
   const { toast } = useToast();
 
   React.useEffect(() => {
-    // We already have tasks from server props, just need to set loading to false.
+    setIsClient(true);
     setTasks(initialTasks);
-    setIsLoading(false);
   }, [initialTasks]);
 
   const handleCheckboxChange = async (
@@ -54,18 +53,17 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
       setTasks((prevTasks) =>
         prevTasks.map((task) =>
           task.rowNumber === rowNumber
-            ? { ...task, isSubsquared: !checked }
+            ? { ...task, isSubscribed: !checked }
             : task
         )
       );
     }
   };
 
-  if (isLoading) {
+  if (!isClient) {
     return (
       <div className="w-full rounded-md border p-4">
         <div className="space-y-3">
-          <Skeleton className="h-5 w-2/5" />
           <div className="space-y-2">
             {[...Array(5)].map((_, i) => (
               <Skeleton key={i} className="h-8 w-full" />
@@ -112,7 +110,7 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
                     href={task.profileUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-500 hover:underline"
+                    className="text-primary hover:underline"
                   >
                     View
                   </Link>
