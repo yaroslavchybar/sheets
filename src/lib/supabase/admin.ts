@@ -8,28 +8,43 @@ import { revalidatePath } from 'next/cache';
 // The RLS policies in the database will enforce that only admins can read all user roles.
 export async function getAllUsersWithRoles() {
   const supabase = createClient();
-  
-  const { data, error } = await supabase
-    .from('user_roles')
-    .select(`
-      user_id,
-      role,
-      users (
-        email
-      )
-    `)
-    .order('email', { referencedTable: 'users', ascending: true });
 
-  if (error) {
-    console.error('Error fetching users with roles:', error);
+  // Note: We can't directly join user_roles with auth.users in a single query
+  // due to RLS and permissions. We fetch them separately and join them in code.
+
+  // 1. Fetch all users from Supabase Auth
+  const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+
+  if (authError) {
+    console.error('Error fetching users from Supabase Auth:', authError);
     return [];
   }
 
-  return data.map((item: any) => ({
-    id: item.user_id,
-    email: item.users.email,
-    role: item.role,
+  // 2. Fetch all roles from our user_roles table
+  const { data: roles, error: rolesError } = await supabase
+    .from('user_roles')
+    .select('user_id, role');
+
+  if (rolesError) {
+    console.error('Error fetching roles:', rolesError);
+    // Continue with an empty roles array to at least show users
+  }
+
+  // Create a map of user_id -> role for easy lookup
+  const rolesMap = new Map(roles?.map(r => [r.user_id, r.role]) || []);
+
+  // 3. Combine the data
+  const usersWithRoles = authUsers.users.map(user => ({
+    id: user.id,
+    email: user.email!,
+    // Assign the role from our map, or default to 'member' if not found
+    role: rolesMap.get(user.id) || 'member',
   }));
+  
+  // Sort users by email
+  usersWithRoles.sort((a, b) => a.email.localeCompare(b.email));
+
+  return usersWithRoles;
 }
 
 export async function updateUserRole(userId: string, role: 'admin' | 'member' | 'editor' | 'moderator') {
