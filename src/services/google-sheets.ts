@@ -1,3 +1,4 @@
+
 'use server';
 
 import type { Task, User } from '@/lib/types';
@@ -23,11 +24,26 @@ export async function getUsers(currentUserEmail?: string | null): Promise<User[]
 
   if (useMockData) {
     console.log("Using mock user data. Set GOOGLE_SHEET_ID in .env.local to connect to Google Sheets.");
-    // When using mock data, we can still respect the ADMIN_EMAILS env var
-    return Promise.resolve(sheetUsers.map(user => ({
+    const mockUsers = sheetUsers.map(user => ({
       ...user,
       role: adminEmails.includes(user.email.toLowerCase()) ? 'admin' : 'member'
-    })));
+    }));
+
+    if (currentUserEmail) {
+      const email = currentUserEmail.toLowerCase();
+      const userExists = mockUsers.some(u => u.email.toLowerCase() === email);
+      if (!userExists) {
+        const name = email.split('@')[0];
+        const initial = name.charAt(0).toUpperCase();
+        mockUsers.push({
+          email: email,
+          role: adminEmails.includes(email) ? 'admin' : 'member',
+          name: name.charAt(0).toUpperCase() + name.slice(1),
+          avatar: `https://placehold.co/40x40/E9ECEF/212529/png?text=${initial}`,
+        });
+      }
+    }
+    return mockUsers;
   }
 
   let usersFromSheet: User[] = [];
@@ -35,12 +51,11 @@ export async function getUsers(currentUserEmail?: string | null): Promise<User[]
     const sheets = getGoogleSheetsClient();
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: GOOGLE_SHEET_ID,
-      range: 'users!A:A', // Only need the email column now
+      range: 'users!A:A',
     });
 
     const rows = response.data.values;
     if (rows && rows.length > 1) {
-      // Filter out header row and any empty rows
       usersFromSheet = rows.slice(1).filter(row => row[0]).map((row): User => {
         const email = row[0].toLowerCase();
         const name = email.split('@')[0];
@@ -56,10 +71,11 @@ export async function getUsers(currentUserEmail?: string | null): Promise<User[]
     }
   } catch (err) {
     console.error('Error fetching users from Google Sheets:', err);
-    // Continue execution, will use fallback data
+    // Fallback to an empty array in case of error
+    usersFromSheet = [];
   }
 
-  // If the current user is not in the sheet, add them to the list.
+  // Ensure the current user is always in the list, even if not in the sheet
   if (currentUserEmail) {
       const email = currentUserEmail.toLowerCase();
       const userExists = usersFromSheet.some(u => u.email.toLowerCase() === email);
