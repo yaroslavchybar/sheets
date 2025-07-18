@@ -34,9 +34,9 @@ export async function getDailyTasksForMember(userId: string): Promise<InstagramA
     return [];
   }
   
-  const allAccounts = await getAvailableAccounts();
   if (existingAssignments.length > 0) {
-    // User already has tasks, just return them from the full list
+    // User already has tasks, fetch them using the stored IDs
+    const allAccounts = await getAvailableAccounts();
     const assignedIds = new Set(existingAssignments.map(a => a.instagram_id));
     return allAccounts.filter(acc => assignedIds.has(acc.id));
   }
@@ -53,6 +53,7 @@ export async function getDailyTasksForMember(userId: string): Promise<InstagramA
     return [];
   }
 
+  const allAccounts = await getAvailableAccounts();
   const assignedTodayIds = new Set(allTodayAssignments.map(a => a.instagram_id));
   
   // Filter out already assigned accounts
