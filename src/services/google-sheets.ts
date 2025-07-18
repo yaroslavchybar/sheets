@@ -5,7 +5,7 @@ import type { InstagramAccount } from '@/lib/types';
 import credentials from '../../credentials.json';
 
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
-const SHEET_NAME = 'Need to sub';
+const SHEET_NAME = 'need_sub';
 
 // Ensure the structure of your credentials matches this type
 interface ServiceAccountCredentials {
@@ -26,7 +26,7 @@ const auth = new google.auth.GoogleAuth({
 const sheets = google.sheets({ version: 'v4', auth });
 
 /**
- * Fetches all available accounts from the "Need to sub" sheet.
+ * Fetches all available accounts from the "need_sub" sheet.
  * Assumes that any row present is an available task.
  */
 export async function getAvailableAccounts(): Promise<InstagramAccount[]> {
@@ -37,7 +37,7 @@ export async function getAvailableAccounts(): Promise<InstagramAccount[]> {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A2:J`, // Read from the second row to the end
+      range: `${SHEET_NAME}!A2:E`, // Read from the second row to the end
     });
 
     const rows = response.data.values;
@@ -51,12 +51,8 @@ export async function getAvailableAccounts(): Promise<InstagramAccount[]> {
       id: row[0] || '', // Column A: ID
       userName: row[1] || '', // Column B: userName
       fullName: row[2] || '', // Column C: fullName
-      profileUrl: row[3] || '', // Column D: Ссылка
-      bio: row[4] || '', // Column E: Био
-      followers: row[5] || '', // Column F: Подписчиков
-      following: row[6] || '', // Column G: Подписок
-      posts: row[7] || '', // Column H: Публикации
-      isSubscribed: row[9] === 'TRUE', // Column J: Подписался
+      profileUrl: row[3] || '', // Column D: profileUrl
+      isSubscribed: row[4] === 'TRUE', // Column E: Подписался
     }));
     
     return accounts;
@@ -77,7 +73,7 @@ export async function updateSubscriptionStatus(rowNumber: number, subscribed: bo
   }
 
   try {
-    const range = `${SHEET_NAME}!J${rowNumber}`; // Target the checkbox column (J)
+    const range = `${SHEET_NAME}!E${rowNumber}`; // Target the checkbox column (E)
     await sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
       range: range,

@@ -35,10 +35,6 @@ export type InstagramAccount = {
   userName: string;
   fullName: string;
   profileUrl: string;
-  bio: string;
-  followers: string;
-  following: string;
-  posts: string;
   isSubscribed: boolean;
 };
 

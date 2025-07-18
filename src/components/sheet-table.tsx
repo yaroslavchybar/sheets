@@ -27,8 +27,9 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
 
   React.useEffect(() => {
     // We already have tasks from server props, just need to set loading to false.
+    setTasks(initialTasks);
     setIsLoading(false);
-  }, []);
+  }, [initialTasks]);
 
   const handleCheckboxChange = async (
     rowNumber: number,
@@ -53,7 +54,7 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
       setTasks((prevTasks) =>
         prevTasks.map((task) =>
           task.rowNumber === rowNumber
-            ? { ...task, isSubscribed: !checked }
+            ? { ...task, isSubsquared: !checked }
             : task
         )
       );
@@ -88,7 +89,6 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
               <TableHead className="w-[80px]">Subscribed</TableHead>
               <TableHead>Username</TableHead>
               <TableHead>Full Name</TableHead>
-              <TableHead>Bio</TableHead>
               <TableHead className="text-right">Profile</TableHead>
             </TableRow>
           </TableHeader>
@@ -107,7 +107,6 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
                 </TableCell>
                 <TableCell className="font-medium">{task.userName}</TableCell>
                 <TableCell>{task.fullName}</TableCell>
-                <TableCell className="max-w-xs truncate">{task.bio}</TableCell>
                 <TableCell className="text-right">
                   <Link
                     href={task.profileUrl}
