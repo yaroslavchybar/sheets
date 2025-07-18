@@ -1,3 +1,4 @@
+
 'use server';
 
 import { createClient as createServerClient } from '@/lib/supabase/server';
@@ -246,5 +247,60 @@ export async function updateUserAssignmentLimit(
 
   revalidatePath('/admin/users');
   revalidatePath('/'); // Revalidate the member dashboard
+  return { error: null };
+}
+
+export async function createUser(
+  email: string,
+  password: string,
+  role: 'admin' | 'member' | 'editor' | 'moderator'
+) {
+  const supabase = createServerClient();
+  const supabaseAdmin = await getAdminSupabase();
+
+  // 1. Check if the current user is an admin
+  const { data: { user: currentUser } } = await supabase.auth.getUser();
+  if (!currentUser) {
+    return { error: { message: 'You must be logged in to create users.' } };
+  }
+  const { data: adminProfile, error: adminError } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', currentUser.id)
+    .single();
+  if (adminError || adminProfile?.role !== 'admin') {
+    return { error: { message: 'You do not have permission to create users.' } };
+  }
+
+  // 2. Create the new user in Supabase Auth
+  const { data: newUser, error: createAuthError } =
+    await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true, // Automatically confirm the user's email
+    });
+
+  if (createAuthError) {
+    return { error: { message: `Failed to create user: ${createAuthError.message}` } };
+  }
+  
+  if (!newUser.user) {
+    return { error: { message: 'User was not returned after creation.' } };
+  }
+
+  // 3. Add the user to the user_roles table
+  const { error: createRoleError } = await supabase.from('user_roles').insert({
+    user_id: newUser.user.id,
+    role: role,
+    daily_assignments_limit: role === 'member' ? 10 : 0, // Default limit
+  });
+
+  if (createRoleError) {
+    // If creating the role fails, we should try to clean up by deleting the auth user
+    await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
+    return { error: { message: `Failed to assign role: ${createRoleError.message}. User has been removed.` } };
+  }
+
+  revalidatePath('/admin/users');
   return { error: null };
 }

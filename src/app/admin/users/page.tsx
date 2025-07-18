@@ -1,3 +1,4 @@
+
 import { createClient } from '@/lib/supabase/server';
 import { getAllUsersWithRoles } from '@/lib/supabase/admin';
 import { redirect } from 'next/navigation';
@@ -22,6 +23,7 @@ import { Sheet } from 'lucide-react';
 import { UserNav } from '@/components/user-nav';
 import type { AppUser } from '@/lib/types';
 import { UserAssignmentInput } from './_components/user-assignment-input';
+import { AddUserDialog } from './_components/add-user-dialog';
 
 export default async function AdminUsersPage() {
   const supabase = createClient();
@@ -70,10 +72,15 @@ export default async function AdminUsersPage() {
       <main className="flex-1 p-4 md:p-6 lg:p-8">
         <Card>
           <CardHeader>
-            <CardTitle>User Management</CardTitle>
-            <CardDescription>
-              Manage user roles, daily assignment limits, and view activity.
-            </CardDescription>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle>User Management</CardTitle>
+                <CardDescription>
+                  Manage user roles, daily assignment limits, and view activity.
+                </CardDescription>
+              </div>
+              <AddUserDialog />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="w-full rounded-md border">
