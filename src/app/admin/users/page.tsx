@@ -19,7 +19,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { UserRoleSelector } from './_components/user-role-selector';
-import { Sheet } from 'lucide-react';
+import { UserRoundCheck } from 'lucide-react';
 import { UserNav } from '@/components/user-nav';
 import type { AppUser } from '@/lib/types';
 import { UserAssignmentInput } from './_components/user-assignment-input';
@@ -62,8 +62,8 @@ export default async function AdminUsersPage() {
     <div className="flex min-h-screen w-full flex-col">
       <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
         <div className="flex items-center gap-2 font-semibold">
-          <Sheet className="h-6 w-6" />
-          <span>SheetFlow - Admin</span>
+          <UserRoundCheck className="h-6 w-6" />
+          <span>F/U - Admin</span>
         </div>
         <div className="ml-auto">
           <UserNav user={pageUser} />

@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "SheetFlow",
+  title: "F/U",
   description: "Manage your Google Sheet data with ease.",
 };
 
