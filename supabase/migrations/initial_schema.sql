@@ -57,15 +57,22 @@ FOR ALL USING (
 );
 
 -- Trigger function to automatically create a role entry for new users
+-- This function runs with the permissions of the user who created it (postgres)
+-- and bypasses RLS to ensure it can insert the new role.
 CREATE OR REPLACE FUNCTION handle_new_user_role()
 RETURNS TRIGGER AS $$
 BEGIN
+    -- Insert a new role entry for the new user
     INSERT INTO public.user_roles (user_id, role)
     VALUES (NEW.id, 'member');
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
+-- We need to drop the old trigger before creating a new one
+DROP TRIGGER IF EXISTS on_auth_user_created_role ON auth.users;
+
+-- Then create the new trigger
 CREATE TRIGGER on_auth_user_created_role
 AFTER INSERT ON auth.users
 FOR EACH ROW EXECUTE FUNCTION handle_new_user_role();
