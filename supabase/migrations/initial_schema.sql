@@ -1,3 +1,15 @@
+-- Drop the existing trigger if it exists
+DROP TRIGGER IF EXISTS on_auth_user_created_role ON auth.users;
+
+-- Drop the trigger function if it exists
+DROP FUNCTION IF EXISTS handle_new_user_role();
+
+-- Drop the user_roles table first if it exists
+DROP TABLE IF EXISTS user_roles;
+
+-- Drop the existing type if it exists
+DROP TYPE IF EXISTS user_role CASCADE;
+
 -- Create an enum for roles to ensure data integrity
 CREATE TYPE user_role AS ENUM ('member', 'admin', 'moderator', 'editor');
 
@@ -13,7 +25,7 @@ CREATE TABLE user_roles (
 -- Create an index on user_id for faster lookups
 CREATE INDEX idx_user_roles_user_id ON user_roles(user_id);
 
--- Trigger to automatically update the updated_at timestamp
+-- Trigger function to automatically update the updated_at timestamp
 CREATE OR REPLACE FUNCTION update_modified_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -27,7 +39,7 @@ BEFORE UPDATE ON user_roles
 FOR EACH ROW
 EXECUTE FUNCTION update_modified_column();
 
--- RLS Policies
+-- Enable Row Level Security
 ALTER TABLE user_roles ENABLE ROW LEVEL SECURITY;
 
 -- Policy to allow users to view their own role
@@ -44,16 +56,15 @@ FOR ALL USING (
     )
 );
 
-
--- Trigger to automatically create a role entry for new users
+-- Trigger function to automatically create a role entry for new users
 CREATE OR REPLACE FUNCTION handle_new_user_role()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO user_roles (user_id, role)
+    INSERT INTO public.user_roles (user_id, role)
     VALUES (NEW.id, 'member');
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 CREATE TRIGGER on_auth_user_created_role
 AFTER INSERT ON auth.users
