@@ -18,37 +18,56 @@ const getGoogleSheetsClient = () => {
   return google.sheets({ version: 'v4', auth: jwt });
 };
 
-export async function getUsers(): Promise<User[]> {
+export async function getUsers(currentUserEmail?: string | null): Promise<User[]> {
+  const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
+
   if (useMockData) {
     console.log("Using mock user data. Set GOOGLE_SHEET_ID in .env.local to connect to Google Sheets.");
-    return Promise.resolve(sheetUsers);
+    // When using mock data, we can still respect the ADMIN_EMAILS env var
+    return Promise.resolve(sheetUsers.map(user => ({
+      ...user,
+      role: adminEmails.includes(user.email.toLowerCase()) ? 'admin' : 'member'
+    })));
   }
 
   try {
     const sheets = getGoogleSheetsClient();
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: GOOGLE_SHEET_ID,
-      range: 'users!A:B', 
+      range: 'users!A:A', // Only need the email column now
     });
 
     const rows = response.data.values;
     if (rows && rows.length) {
       // Filter out header row if present and any empty rows
-      return rows.filter(row => row[0] && row[0].toLowerCase() !== 'email').map((row): User => {
-        const email = row[0] || '';
-        const name = email.split('@')[0]; // Derive name from email
+      return rows.slice(1).filter(row => row[0]).map((row): User => {
+        const email = row[0].toLowerCase();
+        const name = email.split('@')[0];
         const initial = name.charAt(0).toUpperCase();
 
         return {
             email: email,
-            role: (row[1] || 'member') as 'admin' | 'member',
-            name: name.charAt(0).toUpperCase() + name.slice(1), // Capitalize first letter
-            avatar: `https://placehold.co/40x40/E9ECEF/212529/png?text=${initial}`, // Generate avatar from initial
+            role: adminEmails.includes(email) ? 'admin' : 'member',
+            name: name.charAt(0).toUpperCase() + name.slice(1),
+            avatar: `https://placehold.co/40x40/E9ECEF/212529/png?text=${initial}`,
         };
       });
     }
   } catch (err) {
     console.error('Error fetching users from Google Sheets:', err);
+  }
+
+  // If the sheet is empty or fails, at least return the current user
+  if (currentUserEmail) {
+    const email = currentUserEmail.toLowerCase();
+    const name = email.split('@')[0];
+    const initial = name.charAt(0).toUpperCase();
+    return [{
+      email: email,
+      role: adminEmails.includes(email) ? 'admin' : 'member',
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      avatar: `https://placehold.co/40x40/E9ECEF/212529/png?text=${initial}`,
+    }]
   }
 
   return [];
