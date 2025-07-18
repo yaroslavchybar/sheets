@@ -13,12 +13,13 @@ const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'YOUR_BOT_
 export default function LoginPage() {
   
   useEffect(() => {
-    // Define the callback function that the Telegram script will call
+    // Define the callback function that the Telegram script will call globally
     (window as any).onTelegramAuth = (user: TelegramUser) => {
       // Call the server action to verify and create a session
       createSession(user).catch(console.error);
     };
 
+    // Cleanup the global function when the component unmounts
     return () => {
       delete (window as any).onTelegramAuth;
     }
@@ -35,22 +36,8 @@ export default function LoginPage() {
           <CardDescription>Please sign in with your Telegram account.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center justify-center">
-          <div id="telegram-login-widget"></div>
-          <Script
-            src="https://telegram.org/js/telegram-widget.js?22"
-            onLoad={() => {
-              (window as any).Telegram.Login.auth(
-                { bot_id: BOT_USERNAME, request_access: true },
-                (data: TelegramUser | false) => {
-                  if (data) {
-                    (window as any).onTelegramAuth(data);
-                  }
-                }
-              );
-            }}
-            strategy="afterInteractive"
-          />
            <div id="telegram-login-button" className="mt-4">
+             {/* This script will find an element with `data-telegram-login` and render the button there. */}
             <Script
               async
               src="https://telegram.org/js/telegram-widget.js?22"
