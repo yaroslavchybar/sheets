@@ -25,7 +25,6 @@ import {
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useRouter } from 'next/navigation';
 
 const formSchema = z.object({
@@ -34,64 +33,6 @@ const formSchema = z.object({
     .string()
     .min(6, { message: 'Password must be at least 6 characters long.' }),
 });
-
-type LoginFormProps = {
-  onSubmit: (values: z.infer<typeof formSchema>) => void;
-  buttonText: string;
-  isLoading: boolean;
-  form: any;
-};
-
-const LoginForm = ({
-  onSubmit,
-  buttonText,
-  isLoading,
-  form,
-}: LoginFormProps) => (
-  <Form {...form}>
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-      <FormField
-        control={form.control}
-        name="email"
-        render={({ field }) => (
-          <FormItem>
-            <Label htmlFor="email">Email</Label>
-            <FormControl>
-              <Input
-                id="email"
-                placeholder="you@example.com"
-                type="email"
-                {...field}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <FormField
-        control={form.control}
-        name="password"
-        render={({ field }) => (
-          <FormItem>
-            <Label htmlFor="password">Password</Label>
-            <FormControl>
-              <Input
-                id="password"
-                placeholder="••••••••"
-                type="password"
-                {...field}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <Button type="submit" className="w-full" disabled={isLoading}>
-        {isLoading ? 'Processing...' : buttonText}
-      </Button>
-    </form>
-  </Form>
-);
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -131,71 +72,64 @@ export default function LoginPage() {
     setIsLoading(false);
   }
 
-  async function handleSignUp(values: z.infer<typeof formSchema>) {
-    setIsLoading(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signUp({
-      email: values.email,
-      password: values.password,
-      options: {
-        emailRedirectTo: `${location.origin}/auth/callback`,
-      },
-    });
-
-    if (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Sign Up Failed',
-        description: error.message,
-      });
-    } else {
-      toast({
-        title: 'Check your email',
-        description:
-          "We've sent you a confirmation link to verify your email address.",
-      });
-      form.reset();
-    }
-    setIsLoading(false);
-  }
-  
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/50">
-      <Tabs defaultValue="signin" className="w-full max-w-sm">
-        <Card>
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground">
-              <Sheet className="h-8 w-8" />
-            </div>
-            <CardTitle className="text-2xl">SheetFlow</CardTitle>
-            <CardDescription>
-              Sign in or create an account to continue.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
-            </TabsList>
-            <TabsContent value="signin" className="pt-4">
-              <LoginForm
-                onSubmit={handleSignIn}
-                buttonText="Sign In"
-                isLoading={isLoading}
-                form={form}
+      <Card className="w-full max-w-sm">
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground">
+            <Sheet className="h-8 w-8" />
+          </div>
+          <CardTitle className="text-2xl">SheetFlow</CardTitle>
+          <CardDescription>
+            Sign in to your account to continue.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSignIn)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <Label htmlFor="email">Email</Label>
+                    <FormControl>
+                      <Input
+                        id="email"
+                        placeholder="you@example.com"
+                        type="email"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </TabsContent>
-            <TabsContent value="signup" className="pt-4">
-              <LoginForm
-                onSubmit={handleSignUp}
-                buttonText="Sign Up"
-                isLoading={isLoading}
-                form={form}
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <Label htmlFor="password">Password</Label>
+                    <FormControl>
+                      <Input
+                        id="password"
+                        placeholder="••••••••"
+                        type="password"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </TabsContent>
-          </CardContent>
-        </Card>
-      </Tabs>
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? 'Processing...' : 'Sign In'}
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
     </div>
   );
 }
