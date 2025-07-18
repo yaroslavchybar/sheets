@@ -71,11 +71,12 @@ export async function getUsers(currentUserEmail?: string | null): Promise<User[]
     }
   } catch (err) {
     console.error('Error fetching users from Google Sheets:', err);
-    // Fallback to an empty array in case of error
+    // Fallback to an empty array in case of error, we'll handle the current user next.
     usersFromSheet = [];
   }
 
-  // Ensure the current user is always in the list, even if not in the sheet
+  // Ensure the current user is always in the list, even if not in the sheet.
+  // This is the key fix for the infinite loading.
   if (currentUserEmail) {
       const email = currentUserEmail.toLowerCase();
       const userExists = usersFromSheet.some(u => u.email.toLowerCase() === email);
@@ -86,7 +87,7 @@ export async function getUsers(currentUserEmail?: string | null): Promise<User[]
               email: email,
               role: adminEmails.includes(email) ? 'admin' : 'member',
               name: name.charAt(0).toUpperCase() + name.slice(1),
-              avatar: `https://placehold.co/40x40/E9ECEF/212529/png?text=${initial}`,
+              avatar: `https://placehold.co/40x40/212529/F8F9FA/png?text=${initial}`,
           });
       }
   }
