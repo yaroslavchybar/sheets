@@ -10,7 +10,6 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRouter } from "next/navigation";
 
@@ -18,7 +17,6 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isGitHubLoading, setGitHubLoading] = useState(false);
   const { toast } = useToast();
   const supabase = createClient();
   const router = useRouter();
@@ -64,17 +62,6 @@ export default function LoginPage() {
     setIsLoading(false);
   };
 
-  const handleGitHubLogin = async () => {
-    setGitHubLoading(true);
-    const redirectTo = `${window.location.origin}/auth/callback`;
-    await supabase.auth.signInWithOAuth({
-      provider: 'github',
-      options: {
-        redirectTo: redirectTo,
-      },
-    });
-  };
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/50">
        <Card className="w-full max-w-sm">
@@ -104,7 +91,7 @@ export default function LoginPage() {
                         required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        disabled={isLoading || isGitHubLoading}
+                        disabled={isLoading}
                     />
                     </div>
                     <div className="grid gap-2">
@@ -115,10 +102,10 @@ export default function LoginPage() {
                         required
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        disabled={isLoading || isGitHubLoading}
+                        disabled={isLoading}
                     />
                     </div>
-                    <Button type="submit" className="w-full" disabled={isLoading || isGitHubLoading}>
+                    <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Sign In
                     </Button>
@@ -135,7 +122,7 @@ export default function LoginPage() {
                         required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        disabled={isLoading || isGitHubLoading}
+                        disabled={isLoading}
                     />
                     </div>
                     <div className="grid gap-2">
@@ -146,31 +133,16 @@ export default function LoginPage() {
                         required
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        disabled={isLoading || isGitHubLoading}
+                        disabled={isLoading}
                     />
                     </div>
-                    <Button type="submit" className="w-full" disabled={isLoading || isGitHubLoading}>
+                    <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Sign Up
                     </Button>
                 </form>
             </TabsContent>
           </Tabs>
-
-           <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Or continue with
-              </span>
-            </div>
-          </div>
-          <Button variant="outline" className="w-full" onClick={handleGitHubLogin} disabled={isLoading || isGitHubLoading}>
-            {isGitHubLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Image src="/github.svg" width={16} height={16} alt="GitHub" className="mr-2" />}
-            GitHub
-          </Button>
         </CardContent>
       </Card>
     </div>
