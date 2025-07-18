@@ -1,3 +1,4 @@
+
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
@@ -10,41 +11,40 @@ export async function getDailyTasksForMember(
   const supabase = createClient();
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
-  // 1. Get the user's current assignment limit and existing assignments for today
-  const { data: userRole, error: userRoleError } = await supabase
-    .from('user_roles')
-    .select('daily_assignments_limit')
-    .eq('user_id', userId)
-    .single();
-
-  if (userRoleError || !userRole) {
-    console.error('Error fetching user assignment limit:', userRoleError);
-    return [];
-  }
-  const assignmentLimit = userRole.daily_assignments_limit;
-
-  const { data: existingAssignments, error: existingError } = await supabase
+  // Check if assignments have ALREADY been generated for this user today.
+  // We check for any records, including deleted ones, to see if the initial generation has occurred.
+  const { count: assignmentsGeneratedCount, error: countError } = await supabase
     .from('daily_assignments')
-    .select('id, instagram_id, created_at, is_subscribed, is_deleted')
+    .select('*', { count: 'exact', head: true })
     .eq('user_id', userId)
-    .eq('assignment_date', today)
-    .eq('is_deleted', false) // Only fetch non-deleted tasks
-    .order('created_at', { ascending: true });
+    .eq('assignment_date', today);
 
-  if (existingError) {
-    console.error('Error fetching existing assignments:', existingError);
+  if (countError) {
+    console.error('Error checking for existing assignments:', countError);
     return [];
   }
+  
+  // If no assignments have been generated for the user today, create them.
+  if (assignmentsGeneratedCount === 0) {
+    // 1. Get the user's assignment limit
+    const { data: userRole, error: userRoleError } = await supabase
+      .from('user_roles')
+      .select('daily_assignments_limit')
+      .eq('user_id', userId)
+      .single();
 
-  const currentTaskCount = existingAssignments.length;
-  let finalAssignments = [...existingAssignments];
-
-  // 2. Compare current task count with the limit and adjust if necessary
-  if (currentTaskCount < assignmentLimit) {
-    // --- HANDLE LIMIT INCREASE ---
-    const needed = assignmentLimit - currentTaskCount;
+    if (userRoleError || !userRole) {
+      console.error('Error fetching user assignment limit:', userRoleError);
+      return [];
+    }
+    const assignmentLimit = userRole.daily_assignments_limit;
     
-    // Get all accounts assigned to *any* user today to ensure no duplicates
+    // If limit is 0, no need to do anything else.
+    if (assignmentLimit === 0) {
+        return [];
+    }
+
+    // 2. Get all accounts assigned to *any* user today to ensure no duplicates
     const { data: allTodayAssignments, error: allTodayError } = await supabase
       .from('daily_assignments')
       .select('instagram_id')
@@ -56,14 +56,16 @@ export async function getDailyTasksForMember(
     }
     const assignedTodayIds = new Set(allTodayAssignments.map((a) => a.instagram_id));
 
+    // 3. Get available accounts from the sheet and filter out assigned ones
     const allAccounts = await getAvailableAccounts();
     if (!allAccounts || allAccounts.length === 0) {
       return [];
     }
     
     const unassignedAccounts = allAccounts.filter((acc) => !assignedTodayIds.has(acc.id));
-    const newTasksToAssign = unassignedAccounts.slice(0, needed);
+    const newTasksToAssign = unassignedAccounts.slice(0, assignmentLimit);
 
+    // 4. Insert new assignments into the database
     if (newTasksToAssign.length > 0) {
       const newAssignmentRecords = newTasksToAssign.map((task) => ({
         user_id: userId,
@@ -71,26 +73,41 @@ export async function getDailyTasksForMember(
         assignment_date: today,
       }));
 
-      const { data: insertedAssignments, error: insertError } = await supabase
+      const { error: insertError } = await supabase
         .from('daily_assignments')
         .insert(newAssignmentRecords)
-        .select('id, instagram_id, created_at, is_subscribed, is_deleted');
+        .select();
 
       if (insertError) {
         console.error('Error saving new assignments:', insertError);
-      } else {
-        finalAssignments.push(...insertedAssignments);
+        // If insertion fails, return an empty array as no tasks were successfully assigned.
+        return [];
       }
     }
-  } 
+  }
 
-  // 3. If there are no assignments to process, return empty
-  if (finalAssignments.length === 0) {
+  // --- This part runs on EVERY load, including after initial creation ---
+
+  // 1. Fetch the ACTIVE (not deleted) assignments for the user for today.
+  const { data: activeAssignments, error: activeError } = await supabase
+    .from('daily_assignments')
+    .select('id, instagram_id, created_at, is_subscribed, is_deleted')
+    .eq('user_id', userId)
+    .eq('assignment_date', today)
+    .eq('is_deleted', false)
+    .order('created_at', { ascending: true });
+
+  if (activeError) {
+    console.error('Error fetching active assignments:', activeError);
+    return [];
+  }
+  
+  if (activeAssignments.length === 0) {
     return [];
   }
 
-  // 4. Fetch details for the final list of assignments from the sheet
-  const finalAssignedIds = new Set(finalAssignments.map((a) => a.instagram_id));
+  // 2. Fetch details for the active assignments from the sheet
+  const activeAssignedIds = new Set(activeAssignments.map((a) => a.instagram_id));
   const allAccounts = await getAvailableAccounts();
 
   if (!allAccounts || allAccounts.length === 0) {
@@ -99,8 +116,8 @@ export async function getDailyTasksForMember(
   
   const idToAccountMap = new Map(allAccounts.map(acc => [acc.id, acc]));
   
-  // Combine db data with sheet data
-  const orderedTasks = finalAssignments
+  // 3. Combine db data with sheet data
+  const orderedTasks = activeAssignments
     .map(assignment => {
       const accountDetails = idToAccountMap.get(assignment.instagram_id);
       if (!accountDetails) return undefined;
