@@ -28,17 +28,23 @@ export async function getUsers(): Promise<User[]> {
     const sheets = getGoogleSheetsClient();
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: GOOGLE_SHEET_ID,
-      range: 'Users!A2:D', 
+      range: 'users!A2:B', 
     });
 
     const rows = response.data.values;
     if (rows && rows.length) {
-      return rows.map((row): User => ({
-        name: row[0] || '',
-        email: row[1] || '',
-        avatar: row[2] || 'https://placehold.co/40x40.png',
-        role: (row[3] || 'member') as 'admin' | 'member',
-      }));
+      return rows.map((row): User => {
+        const email = row[0] || '';
+        const name = email.split('@')[0]; // Derive name from email
+        const initial = name.charAt(0).toUpperCase();
+
+        return {
+            email: email,
+            role: (row[1] || 'member') as 'admin' | 'member',
+            name: name.charAt(0).toUpperCase() + name.slice(1), // Capitalize first letter
+            avatar: `https://placehold.co/40x40/E9ECEF/212529/png?text=${initial}`, // Generate avatar from initial
+        };
+      });
     }
   } catch (err) {
     console.error('Error fetching users from Google Sheets:', err);
@@ -50,7 +56,7 @@ export async function getUsers(): Promise<User[]> {
 export async function getTasks(): Promise<Task[]> {
    if (useMockData) {
     console.log("Using mock task data. Set GOOGLE_SHEET_ID in .env.local to connect to Google Sheets.");
-    return Promise.resolve(sheetData);
+    return Promise.resolve(sheetData.map((t, i) => ({...t, rowNumber: i+2})));
   }
 
   try {
@@ -67,7 +73,7 @@ export async function getTasks(): Promise<Task[]> {
 
       return rows.map((row, index): Task => {
         const assigneeName = row[2];
-        const assigneeAvatar = userMap.get(assigneeName)?.avatar || `https://placehold.co/32x32/E9ECEF/212529/png?text=${assigneeName ? assigneeName.charAt(0) : ''}`;
+        const assigneeAvatar = userMap.get(assigneeName)?.avatar || `https://placehold.co/32x32/E9ECEF/212529/png?text=${assigneeName ? assigneeName.charAt(0).toUpperCase() : ''}`;
 
         return {
           id: row[0],
