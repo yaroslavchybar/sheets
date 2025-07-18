@@ -125,6 +125,7 @@ export default function LoginPage() {
         title: 'Signed In',
         description: "You've been successfully signed in.",
       });
+      router.push('/');
       router.refresh();
     }
     setIsLoading(false);
