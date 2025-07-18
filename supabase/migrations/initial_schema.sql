@@ -1,38 +1,60 @@
--- Create a table for public profiles
-create table profiles (
-  id uuid references auth.users not null primary key,
-  username text unique,
-  role text default 'member'
+-- Create an enum for roles to ensure data integrity
+CREATE TYPE user_role AS ENUM ('member', 'admin', 'moderator', 'editor');
+
+-- Create a user_roles table with comprehensive role management
+CREATE TABLE user_roles (
+    id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
+    role user_role DEFAULT 'member',
+    created_at timestamp with time zone DEFAULT NOW(),
+    updated_at timestamp with time zone DEFAULT NOW()
 );
 
--- Set up Row Level Security (RLS)
--- See https://supabase.com/docs/guides/auth/row-level-security
-alter table profiles
-  enable row level security;
+-- Create an index on user_id for faster lookups
+CREATE INDEX idx_user_roles_user_id ON user_roles(user_id);
 
-create policy "Public profiles are viewable by everyone." on profiles
-  for select using (true);
+-- Trigger to automatically update the updated_at timestamp
+CREATE OR REPLACE FUNCTION update_modified_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
-create policy "Users can insert their own profile." on profiles
-  for insert with check (auth.uid() = id);
+CREATE TRIGGER update_user_roles_modtime
+BEFORE UPDATE ON user_roles
+FOR EACH ROW
+EXECUTE FUNCTION update_modified_column();
 
-create policy "Users can update their own username." on profiles
-  for update using (auth.uid() = id) with check (auth.uid() = id);
+-- RLS Policies
+ALTER TABLE user_roles ENABLE ROW LEVEL SECURITY;
 
--- This trigger automatically creates a profile for new users.
--- See https://supabase.com/docs/guides/auth/managing-user-data#using-triggers
-create function public.handle_new_user()
-returns trigger as $$
-begin
-  insert into public.profiles (id, username)
-  values (new.id, new.email);
-  return new;
-end;
-$$ language plpgsql security definer;
+-- Policy to allow users to view their own role
+CREATE POLICY "Users can view their own role" ON user_roles
+FOR SELECT USING (auth.uid() = user_id);
 
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute procedure public.handle_new_user();
+-- Policy for admins to manage roles
+CREATE POLICY "Admins can manage all roles" ON user_roles
+FOR ALL USING (
+    EXISTS (
+        SELECT 1 
+        FROM user_roles ur 
+        JOIN auth.users u ON ur.user_id = u.id 
+        WHERE u.id = auth.uid() AND ur.role = 'admin'
+    )
+);
 
--- Set up Storage!
--- Not needed for this schema, but a common next step.
+-- Trigger to automatically create a role entry for new users
+CREATE OR REPLACE FUNCTION handle_new_user_role()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO user_roles (user_id)
+    VALUES (NEW.id);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_auth_user_created_role
+AFTER INSERT ON auth.users
+FOR EACH ROW EXECUTE FUNCTION handle_new_user_role();
