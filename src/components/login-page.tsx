@@ -35,6 +35,64 @@ const formSchema = z.object({
     .min(6, { message: 'Password must be at least 6 characters long.' }),
 });
 
+type LoginFormProps = {
+  onSubmit: (values: z.infer<typeof formSchema>) => void;
+  buttonText: string;
+  isLoading: boolean;
+  form: any;
+};
+
+const LoginForm = ({
+  onSubmit,
+  buttonText,
+  isLoading,
+  form,
+}: LoginFormProps) => (
+  <Form {...form}>
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <FormField
+        control={form.control}
+        name="email"
+        render={({ field }) => (
+          <FormItem>
+            <Label htmlFor="email">Email</Label>
+            <FormControl>
+              <Input
+                id="email"
+                placeholder="you@example.com"
+                type="email"
+                {...field}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name="password"
+        render={({ field }) => (
+          <FormItem>
+            <Label htmlFor="password">Password</Label>
+            <FormControl>
+              <Input
+                id="password"
+                placeholder="••••••••"
+                type="password"
+                {...field}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <Button type="submit" className="w-full" disabled={isLoading}>
+        {isLoading ? 'Processing...' : buttonText}
+      </Button>
+    </form>
+  </Form>
+);
+
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -99,59 +157,7 @@ export default function LoginPage() {
     }
     setIsLoading(false);
   }
-
-  const LoginForm = ({
-    onSubmit,
-    buttonText,
-  }: {
-    onSubmit: (values: z.infer<typeof formSchema>) => void;
-    buttonText: string;
-  }) => (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <Label htmlFor="email">Email</Label>
-              <FormControl>
-                <Input
-                  id="email"
-                  placeholder="you@example.com"
-                  type="email"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <Label htmlFor="password">Password</Label>
-              <FormControl>
-                <Input
-                  id="password"
-                  placeholder="••••••••"
-                  type="password"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading ? 'Processing...' : buttonText}
-        </Button>
-      </form>
-    </Form>
-  );
-
+  
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/50">
       <Tabs defaultValue="signin" className="w-full max-w-sm">
@@ -171,10 +177,20 @@ export default function LoginPage() {
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
             </TabsList>
             <TabsContent value="signin" className="pt-4">
-              <LoginForm onSubmit={handleSignIn} buttonText="Sign In" />
+              <LoginForm
+                onSubmit={handleSignIn}
+                buttonText="Sign In"
+                isLoading={isLoading}
+                form={form}
+              />
             </TabsContent>
             <TabsContent value="signup" className="pt-4">
-              <LoginForm onSubmit={handleSignUp} buttonText="Sign Up" />
+              <LoginForm
+                onSubmit={handleSignUp}
+                buttonText="Sign Up"
+                isLoading={isLoading}
+                form={form}
+              />
             </TabsContent>
           </CardContent>
         </Card>
