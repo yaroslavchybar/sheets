@@ -288,17 +288,17 @@ export async function createUser(
     return { error: { message: 'User was not returned after creation.' } };
   }
 
-  // 3. Add the user to the user_roles table
-  const { error: createRoleError } = await supabase.from('user_roles').insert({
-    user_id: newUser.user.id,
+  // 3. Update the user's role in the user_roles table.
+  // A trigger in Supabase should have already created a default 'member' role.
+  const { error: updateRoleError } = await supabase.from('user_roles').update({
     role: role,
     daily_assignments_limit: role === 'member' ? 10 : 0, // Default limit
-  });
+  }).eq('user_id', newUser.user.id);
 
-  if (createRoleError) {
-    // If creating the role fails, we should try to clean up by deleting the auth user
+  if (updateRoleError) {
+    // If updating the role fails, we should try to clean up by deleting the auth user
     await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
-    return { error: { message: `Failed to assign role: ${createRoleError.message}. User has been removed.` } };
+    return { error: { message: `Failed to assign role: ${updateRoleError.message}. User has been removed.` } };
   }
 
   revalidatePath('/admin/users');
