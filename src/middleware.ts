@@ -1,12 +1,10 @@
-
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import type { CookieOptions } from '@supabase/ssr'
 
-export async function middleware(req: NextRequest) {
+export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
     request: {
-      headers: req.headers,
+      headers: request.headers,
     },
   })
 
@@ -16,17 +14,17 @@ export async function middleware(req: NextRequest) {
     {
       cookies: {
         get(name: string) {
-          return req.cookies.get(name)?.value
+          return request.cookies.get(name)?.value
         },
-        set(name: string, value: string, options: CookieOptions) {
-          req.cookies.set({
+        set(name: string, value: string, options) {
+          request.cookies.set({
             name,
             value,
             ...options,
           })
           response = NextResponse.next({
             request: {
-              headers: req.headers,
+              headers: request.headers,
             },
           })
           response.cookies.set({
@@ -35,15 +33,15 @@ export async function middleware(req: NextRequest) {
             ...options,
           })
         },
-        remove(name: string, options: CookieOptions) {
-          req.cookies.set({
+        remove(name: string, options) {
+          request.cookies.set({
             name,
             value: '',
             ...options,
           })
           response = NextResponse.next({
             request: {
-              headers: req.headers,
+              headers: request.headers,
             },
           })
           response.cookies.set({
@@ -60,12 +58,12 @@ export async function middleware(req: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (user && req.nextUrl.pathname === '/login') {
-    return NextResponse.redirect(new URL('/', req.url))
+  if (user && request.nextUrl.pathname.startsWith('/login')) {
+    return NextResponse.redirect(new URL('/', request.url))
   }
 
-  if (!user && req.nextUrl.pathname !== '/login') {
-    return NextResponse.redirect(new URL('/login', req.url))
+  if (!user && !request.nextUrl.pathname.startsWith('/login')) {
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
   return response
@@ -79,7 +77,6 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - /auth (auth routes)
-     * - /login (the login page)
      */
     '/((?!_next/static|_next/image|favicon.ico|auth/callback|.*\\.png$).*)',
   ],
