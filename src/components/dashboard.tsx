@@ -3,14 +3,14 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { SheetTable } from '@/components/sheet-table';
 import { Sheet } from 'lucide-react';
-import type { AppUser } from '@/lib/types';
+import type { User as TasksUser } from '@/lib/types';
 import { useEffect, useState } from 'react';
 import { getUsers } from '@/services/google-sheets';
 import { UserButton, useUser } from '@clerk/nextjs';
 
 export default function Dashboard() {
   const { user: clerkUser } = useUser();
-  const [tasksUser, setTasksUser] = useState<any | null>(null);
+  const [tasksUser, setTasksUser] = useState<TasksUser | null>(null);
 
   useEffect(() => {
     const findUserInSheet = async () => {
@@ -29,7 +29,7 @@ export default function Dashboard() {
         const name = clerkUser.username || clerkUser.firstName || 'User';
         const initial = name.charAt(0).toUpperCase();
         setTasksUser({
-          email: currentUserEmail,
+          email: currentUserEmail || '',
           name: name,
           avatar: `https://placehold.co/40x40/E9ECEF/212529/png?text=${initial}`,
           role: 'member',
