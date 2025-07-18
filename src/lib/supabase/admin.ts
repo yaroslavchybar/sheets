@@ -62,5 +62,6 @@ export async function updateUserRole(userId: string, role: 'admin' | 'member' | 
     }
 
     revalidatePath('/admin/users');
+    revalidatePath('/'); // Revalidate the home page to update user nav
     return { error: null };
 }
