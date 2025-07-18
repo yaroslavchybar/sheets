@@ -24,6 +24,7 @@ import { UserNav } from '@/components/user-nav';
 import type { AppUser } from '@/lib/types';
 import { UserAssignmentInput } from './_components/user-assignment-input';
 import { AddUserDialog } from './_components/add-user-dialog';
+import { Separator } from '@/components/ui/separator';
 
 export default async function AdminUsersPage() {
   const supabase = createClient();
@@ -83,7 +84,8 @@ export default async function AdminUsersPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="w-full rounded-md border">
+            {/* Desktop Table View */}
+            <div className="hidden w-full rounded-md border md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -154,6 +156,65 @@ export default async function AdminUsersPage() {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="grid gap-4 md:hidden">
+              {users.map((u) => (
+                <Card key={u.id} className="p-4">
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium truncate pr-2">{u.email}</span>
+                      {u.id === user.id && (
+                        <Badge variant="outline">You</Badge>
+                      )}
+                    </div>
+
+                    <Separator />
+
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-sm text-muted-foreground">
+                        Role
+                      </span>
+                      <div className="w-1/2">
+                        <UserRoleSelector
+                          userId={u.id}
+                          currentRole={u.role}
+                          isCurrentUser={u.id === user.id}
+                        />
+                      </div>
+                    </div>
+
+                    {u.role === 'member' && (
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-sm text-muted-foreground">
+                          Daily Limit
+                        </span>
+                        <UserAssignmentInput
+                          userId={u.id}
+                          currentLimit={u.daily_assignments_limit}
+                        />
+                      </div>
+                    )}
+                    
+                    {u.role === 'member' && (
+                        <>
+                            <Separator/>
+                             <div className="flex items-center justify-between text-center text-sm">
+                                <div className='flex-1'>
+                                    <p className="font-semibold">{u.subscribed_today_count}</p>
+                                    <p className="text-xs text-muted-foreground">Today</p>
+                                </div>
+                                <div className='flex-1'>
+                                    <p className="font-semibold">{u.subscribed_total_count}</p>
+                                    <p className="text-xs text-muted-foreground">Total</p>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                  </div>
+                </Card>
+              ))}
             </div>
           </CardContent>
         </Card>
