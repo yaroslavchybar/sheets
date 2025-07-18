@@ -2,9 +2,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  // This `response` object will be passed to the Supabase client to be
-  // modified with the appropriate headers.
-  const response = NextResponse.next({
+  let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
@@ -19,20 +17,33 @@ export async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value
         },
         set(name: string, value: string, options: CookieOptions) {
-          // The Supabase client will automatically set the cookie on the response
-          // object.
+          request.cookies.set({
+            name,
+            value,
+            ...options,
+          })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
           response.cookies.set({
             name,
             value,
             ...options,
-            // These are essential for iframe environments
-            sameSite: 'none',
-            secure: true,
           })
         },
         remove(name: string, options: CookieOptions) {
-          // The Supabase client will automatically remove the cookie on the response
-          // object.
+          request.cookies.set({
+            name,
+            value: '',
+            ...options,
+          })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
           response.cookies.set({
             name,
             value: '',
@@ -40,10 +51,13 @@ export async function middleware(request: NextRequest) {
           })
         },
       },
+      cookieOptions: {
+        sameSite: 'none',
+        secure: true,
+      },
     }
   )
 
-  // This will refresh the session cookie if it's expired.
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -60,7 +74,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
-  // Return the response object, which may have been modified by the Supabase client
   return response
 }
 
