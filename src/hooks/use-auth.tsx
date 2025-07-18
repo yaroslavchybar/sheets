@@ -2,12 +2,12 @@
 
 import type { User } from '@/lib/types';
 import React, { createContext, useState, useContext, ReactNode } from 'react';
-import { sheetUsers } from '@/data/sheet-data';
+import { getUsers } from '@/services/google-sheets';
 import { useToast } from './use-toast';
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string) => boolean;
+  login: (email: string) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -17,9 +17,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const { toast } = useToast();
 
-  const login = (email: string) => {
+  const login = async (email: string) => {
     // In a real app, this would involve a call to an authentication service
     // or Google Sheets API. For this demo, we check against our mock user list.
+    const sheetUsers = await getUsers();
     const foundUser = sheetUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
     
     if (foundUser) {
