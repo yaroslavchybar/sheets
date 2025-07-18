@@ -2,40 +2,36 @@
 
 import type { User } from '@/lib/types';
 import React, { createContext, useState, useContext, ReactNode } from 'react';
+import { sheetUsers } from '@/data/sheet-data';
+import { useToast } from './use-toast';
 
 interface AuthContextType {
   user: User | null;
-  login: (role: 'admin' | 'member') => void;
+  login: (email: string) => boolean;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const adminUser: User = {
-  name: 'Admin User',
-  email: 'admin@sheetflow.app',
-  avatar: 'https://placehold.co/40x40/212529/F8F9FA/png?text=AU',
-  role: 'admin',
-};
-
-const memberUser: User = {
-    name: 'Alice',
-    email: 'alice@sheetflow.app',
-    avatar: 'https://placehold.co/40x40/E9ECEF/212529/png?text=A',
-    role: 'member',
-};
-
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const { toast } = useToast();
 
-  const login = (role: 'admin' | 'member') => {
-    // In a real app, this would involve a call to an authentication service.
-    // For this demo, we'll just set the user based on the selected role.
-    if (role === 'admin') {
-      setUser(adminUser);
+  const login = (email: string) => {
+    // In a real app, this would involve a call to an authentication service
+    // or Google Sheets API. For this demo, we check against our mock user list.
+    const foundUser = sheetUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+    
+    if (foundUser) {
+      setUser(foundUser);
+      return true;
     } else {
-      setUser(memberUser);
+      toast({
+        variant: "destructive",
+        title: "Login Failed",
+        description: "No user found with that email address.",
+      })
+      return false;
     }
   };
 

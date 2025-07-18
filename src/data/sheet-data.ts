@@ -1,4 +1,43 @@
-import type { Task } from '@/lib/types';
+import type { Task, User } from '@/lib/types';
+
+export const sheetUsers: User[] = [
+  {
+    name: 'Admin User',
+    email: 'admin@sheetflow.app',
+    avatar: 'https://placehold.co/40x40/212529/F8F9FA/png?text=AU',
+    role: 'admin',
+  },
+  {
+      name: 'Alice',
+      email: 'alice@sheetflow.app',
+      avatar: 'https://placehold.co/40x40/E9ECEF/212529/png?text=A',
+      role: 'member',
+  },
+  {
+      name: 'Bob',
+      email: 'bob@sheetflow.app',
+      avatar: 'https://placehold.co/40x40/E9ECEF/212529/png?text=B',
+      role: 'member',
+  },
+    {
+      name: 'Charlie',
+      email: 'charlie@sheetflow.app',
+      avatar: 'https://placehold.co/40x40/E9ECEF/212529/png?text=C',
+      role: 'member',
+  },
+  {
+      name: 'David',
+      email: 'david@sheetflow.app',
+      avatar: 'https://placehold.co/40x40/E9ECEF/212529/png?text=D',
+      role: 'member',
+  },
+    {
+      name: 'Eve',
+      email: 'eve@sheetflow.app',
+      avatar: 'https://placehold.co/40x40/E9ECEF/212529/png?text=E',
+      role: 'member',
+  }
+];
 
 export const sheetData: Task[] = [
   {
