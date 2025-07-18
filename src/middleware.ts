@@ -31,6 +31,9 @@ export async function middleware(request: NextRequest) {
             name,
             value,
             ...options,
+            // The following two lines are the fix
+            sameSite: 'none',
+            secure: true,
           })
         },
         remove(name: string, options: CookieOptions) {
