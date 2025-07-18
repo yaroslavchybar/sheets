@@ -28,12 +28,13 @@ export async function getUsers(): Promise<User[]> {
     const sheets = getGoogleSheetsClient();
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: GOOGLE_SHEET_ID,
-      range: 'users!A2:B', 
+      range: 'users!A:B', 
     });
 
     const rows = response.data.values;
     if (rows && rows.length) {
-      return rows.map((row): User => {
+      // Filter out header row if present and any empty rows
+      return rows.filter(row => row[0] && row[0].toLowerCase() !== 'email').map((row): User => {
         const email = row[0] || '';
         const name = email.split('@')[0]; // Derive name from email
         const initial = name.charAt(0).toUpperCase();
