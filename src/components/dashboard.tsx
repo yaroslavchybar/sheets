@@ -1,39 +1,48 @@
-"use client";
+'use client';
 
-import type { User } from "@supabase/supabase-js";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { SheetTable } from "@/components/sheet-table";
-import { UserNav } from "@/components/user-nav";
-import { Sheet } from "lucide-react";
-import { getUsers } from "@/services/google-sheets";
-import { useEffect, useState } from "react";
-import type { User as AppUser } from "@/lib/types";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { SheetTable } from '@/components/sheet-table';
+import { UserNav } from '@/components/user-nav';
+import { Sheet } from 'lucide-react';
+import type { AppUser } from '@/lib/types';
+import { useEffect, useState } from 'react';
+import { getUsers } from '@/services/google-sheets';
 
-export default function Dashboard({ user }: { user: User }) {
-  const [appUser, setAppUser] = useState<AppUser | null>(null);
+export default function Dashboard({ user }: { user: AppUser }) {
+  const [tasksUser, setTasksUser] = useState<any | null>(null);
 
   useEffect(() => {
-    const fetchAppUser = async () => {
-      if (user.email) {
-        const sheetUsers = await getUsers();
-        const foundUser = sheetUsers.find(u => u.email.toLowerCase() === user.email!.toLowerCase());
-        if (foundUser) {
-          setAppUser(foundUser);
-        } else {
-          // Fallback for user not in sheet
-          setAppUser({
-            email: user.email,
-            name: user.email.split('@')[0],
-            avatar: user.user_metadata.avatar_url || `https://placehold.co/40x40/E9ECEF/212529/png?text=${user.email.charAt(0).toUpperCase()}`,
-            role: 'member'
-          });
-        }
+    const findUserInSheet = async () => {
+      // In a real app, you might map telegram username to an email or other identifier
+      // For this demo, we'll just use a fallback if the telegram user isn't in our sheet.
+      const sheetUsers = await getUsers();
+      const foundUser = sheetUsers.find(
+        (u) => u.name.toLowerCase() === user.username?.toLowerCase()
+      );
+
+      if (foundUser) {
+        setTasksUser(foundUser);
+      } else {
+        // Fallback for user not in sheet, using their telegram profile
+        setTasksUser({
+          email: `${user.username}@telegram.user`,
+          name: user.username || user.firstName,
+          avatar: user.photoUrl,
+          role: 'member',
+        });
       }
     };
-    fetchAppUser();
+    findUserInSheet();
   }, [user]);
 
-  if (!user || !appUser) return null;
+  if (!tasksUser) {
+    return (
+      <div className="flex min-h-screen w-full flex-col items-center justify-center">
+        <p>Loading user data...</p>
+      </div>
+    );
+  }
+
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -43,7 +52,7 @@ export default function Dashboard({ user }: { user: User }) {
           <span>SheetFlow</span>
         </div>
         <div className="ml-auto">
-          <UserNav user={user} appUser={appUser} />
+          <UserNav user={user} appUser={tasksUser} />
         </div>
       </header>
       <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -55,7 +64,7 @@ export default function Dashboard({ user }: { user: User }) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <SheetTable user={appUser} />
+            <SheetTable user={tasksUser} />
           </CardContent>
         </Card>
       </main>

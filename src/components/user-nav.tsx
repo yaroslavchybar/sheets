@@ -1,8 +1,7 @@
-"use client";
+'use client';
 
-import { createClient } from "@/lib/supabase/client";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,42 +10,39 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { LogOut, User as UserIcon } from "lucide-react";
-import { useRouter } from "next/navigation";
-import type { User } from "@supabase/supabase-js";
-import type { User as AppUser } from "@/lib/types";
+} from '@/components/ui/dropdown-menu';
+import { LogOut, User as UserIcon } from 'lucide-react';
+import { deleteSession } from '@/app/actions';
+import type { AppUser, TelegramUser } from '@/lib/types';
 
-
-export function UserNav({ user, appUser }: { user: User, appUser: AppUser }) {
-  const supabase = createClient();
-  const router = useRouter();
-
+export function UserNav({ user, appUser }: { user: TelegramUser; appUser: AppUser }) {
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.refresh();
+    await deleteSession();
   };
 
   if (!user) {
     return null;
   }
+  
+  const displayName = user.username || `${user.firstName} ${user.lastName || ''}`.trim();
+  const fallback = displayName.charAt(0).toUpperCase();
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-8 w-8">
-            <AvatarImage src={user.user_metadata.avatar_url || appUser.avatar} alt={`@${appUser.name}`} />
-            <AvatarFallback>{appUser.name.charAt(0)}</AvatarFallback>
+            <AvatarImage src={user.photoUrl} alt={`@${displayName}`} />
+            <AvatarFallback>{fallback}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{appUser.name}</p>
+            <p className="text-sm font-medium leading-none">{displayName}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              {user.email}
+              Telegram ID: {user.id}
             </p>
           </div>
         </DropdownMenuLabel>
