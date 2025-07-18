@@ -1,3 +1,4 @@
+
 export type Task = {
   id: string;
   rowNumber?: number;
@@ -19,13 +20,15 @@ export type User = {
   role: 'admin' | 'member';
 };
 
+export type UserRole = 'admin' | 'member';
+
 // Represents the user object for our app's session
 export type AppUser = {
   id: string;
   email: string;
   username?: string;
   photoUrl: string;
-  role?: 'admin' | 'member' | 'editor' | 'moderator';
+  role?: UserRole;
 };
 
 // Represents an Instagram account from the Google Sheet
@@ -49,7 +52,7 @@ export type AppSettings = {
 export type UserWithRole = {
   id: string;
   email: string;
-  role: 'admin' | 'member' | 'editor' | 'moderator';
+  role: UserRole;
   daily_assignments_limit: number;
   subscribed_today_count: number;
   subscribed_total_count: number;

@@ -4,7 +4,7 @@
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
-import type { UserWithRole } from '../types';
+import type { UserWithRole, UserRole } from '../types';
 
 // This function requires an admin-level Supabase client to fetch all users.
 // We create a dedicated admin client here using the service role key.
@@ -105,12 +105,12 @@ export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
   }
 
   // 5. Combine all data
-  const usersWithRoles = authData.users.map((user) => {
+  const usersWithRoles: UserWithRole[] = authData.users.map((user) => {
     const roleInfo = rolesMap.get(user.id);
     return {
       id: user.id,
       email: user.email!,
-      role: roleInfo?.role || 'member',
+      role: (roleInfo?.role as UserRole) || 'member',
       daily_assignments_limit: roleInfo?.daily_assignments_limit ?? 10,
       subscribed_today_count: subscribedTodayCountMap.get(user.id) || 0,
       subscribed_total_count: subscribedTotalCountMap.get(user.id) || 0,
@@ -124,7 +124,7 @@ export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
 
 export async function updateUserRole(
   userId: string,
-  role: 'admin' | 'member' | 'editor' | 'moderator'
+  role: UserRole
 ) {
   const supabase = createServerClient();
 
@@ -253,7 +253,7 @@ export async function updateUserAssignmentLimit(
 export async function createUser(
   email: string,
   password: string,
-  role: 'admin' | 'member' | 'editor' | 'moderator'
+  role: UserRole
 ) {
   const supabase = createServerClient();
   const supabaseAdmin = await getAdminSupabase();

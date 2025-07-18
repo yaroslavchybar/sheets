@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -10,10 +11,11 @@ import {
 import { updateUserRole } from '@/lib/supabase/admin';
 import { useToast } from '@/hooks/use-toast';
 import { useTransition } from 'react';
+import type { UserRole } from '@/lib/types';
 
 type UserRoleSelectorProps = {
   userId: string;
-  currentRole: 'member' | 'admin' | 'moderator' | 'editor';
+  currentRole: UserRole;
   isCurrentUser: boolean;
 };
 
@@ -25,7 +27,7 @@ export function UserRoleSelector({
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
 
-  const handleRoleChange = (newRole: UserRoleSelectorProps['currentRole']) => {
+  const handleRoleChange = (newRole: UserRole) => {
     startTransition(async () => {
       const { error } = await updateUserRole(userId, newRole);
 
@@ -55,8 +57,6 @@ export function UserRoleSelector({
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="admin">Admin</SelectItem>
-        <SelectItem value="editor">Editor</SelectItem>
-        <SelectItem value="moderator">Moderator</SelectItem>
         <SelectItem value="member">Member</SelectItem>
       </SelectContent>
     </Select>
