@@ -30,6 +30,7 @@ export async function getUsers(currentUserEmail?: string | null): Promise<User[]
     })));
   }
 
+  let usersFromSheet: User[] = [];
   try {
     const sheets = getGoogleSheetsClient();
     const response = await sheets.spreadsheets.values.get({
@@ -40,7 +41,7 @@ export async function getUsers(currentUserEmail?: string | null): Promise<User[]
     const rows = response.data.values;
     if (rows && rows.length > 1) {
       // Filter out header row and any empty rows
-      return rows.slice(1).filter(row => row[0]).map((row): User => {
+      usersFromSheet = rows.slice(1).filter(row => row[0]).map((row): User => {
         const email = row[0].toLowerCase();
         const name = email.split('@')[0];
         const initial = name.charAt(0).toUpperCase();
@@ -55,23 +56,26 @@ export async function getUsers(currentUserEmail?: string | null): Promise<User[]
     }
   } catch (err) {
     console.error('Error fetching users from Google Sheets:', err);
-    // Fall through to return the current user or an empty array
+    // Continue execution, will use fallback data
   }
 
-  // If the sheet is empty or fails, at least return the current user if available
+  // If the current user is not in the sheet, add them to the list.
   if (currentUserEmail) {
-    const email = currentUserEmail.toLowerCase();
-    const name = email.split('@')[0];
-    const initial = name.charAt(0).toUpperCase();
-    return [{
-      email: email,
-      role: adminEmails.includes(email) ? 'admin' : 'member',
-      name: name.charAt(0).toUpperCase() + name.slice(1),
-      avatar: `https://placehold.co/40x40/E9ECEF/212529/png?text=${initial}`,
-    }];
+      const email = currentUserEmail.toLowerCase();
+      const userExists = usersFromSheet.some(u => u.email.toLowerCase() === email);
+      if (!userExists) {
+          const name = email.split('@')[0];
+          const initial = name.charAt(0).toUpperCase();
+          usersFromSheet.push({
+              email: email,
+              role: adminEmails.includes(email) ? 'admin' : 'member',
+              name: name.charAt(0).toUpperCase() + name.slice(1),
+              avatar: `https://placehold.co/40x40/E9ECEF/212529/png?text=${initial}`,
+          });
+      }
   }
 
-  return []; // Always return an array
+  return usersFromSheet;
 }
 
 export async function getTasks(): Promise<Task[]> {
