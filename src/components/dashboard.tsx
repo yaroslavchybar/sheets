@@ -13,7 +13,6 @@ export default function Dashboard({ user }: { user: AppUser }) {
 
   useEffect(() => {
     const findUserInSheet = async () => {
-      // Pass the current user's email to ensure they are included in the results
       const sheetUsers = await getUsers(user.email);
       const foundUser = sheetUsers.find(
         (u) => u.email.toLowerCase() === user.email?.toLowerCase()
@@ -22,12 +21,11 @@ export default function Dashboard({ user }: { user: AppUser }) {
       if (foundUser) {
         setTasksUser(foundUser);
       } else {
-        // This fallback may not be strictly necessary anymore but is good for safety.
         setTasksUser({
           email: user.email || '',
           name: user.username || user.email.split('@')[0],
           avatar: user.photoUrl,
-          role: 'member', // Default to member if not found in sheet
+          role: 'member', 
         });
       }
     };
