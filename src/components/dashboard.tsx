@@ -3,43 +3,37 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { SheetTable } from '@/components/sheet-table';
 import { Sheet } from 'lucide-react';
-import type { User as TasksUser } from '@/lib/types';
+import type { User, AppUser } from '@/lib/types';
 import { useEffect, useState } from 'react';
 import { getUsers } from '@/services/google-sheets';
-import { UserButton, useUser } from '@clerk/nextjs';
+import { UserNav } from '@/components/user-nav';
 
-export default function Dashboard() {
-  const { user: clerkUser } = useUser();
-  const [tasksUser, setTasksUser] = useState<TasksUser | null>(null);
+export default function Dashboard({ user: appUser }: { user: AppUser }) {
+  const [tasksUser, setTasksUser] = useState<User | null>(null);
 
   useEffect(() => {
     const findUserInSheet = async () => {
-      if (!clerkUser) return;
-      const currentUserEmail = clerkUser.primaryEmailAddress?.emailAddress;
-
-      const sheetUsers = await getUsers(currentUserEmail);
+      const sheetUsers = await getUsers();
       const foundUser = sheetUsers.find(
-        (u) => u.email.toLowerCase() === currentUserEmail?.toLowerCase()
+        (u) => u.email.toLowerCase() === appUser.email?.toLowerCase()
       );
 
       if (foundUser) {
         setTasksUser(foundUser);
       } else {
-        // Fallback for user not in sheet
-        const name = clerkUser.username || clerkUser.firstName || 'User';
-        const initial = name.charAt(0).toUpperCase();
+        // Fallback for user not in sheet but logged in
         setTasksUser({
-          email: currentUserEmail || '',
-          name: name,
-          avatar: `https://placehold.co/40x40/E9ECEF/212529/png?text=${initial}`,
-          role: 'member',
+          email: appUser.email || '',
+          name: appUser.username || appUser.firstName,
+          avatar: appUser.photoUrl,
+          role: 'member', // Default to member if not found in sheet
         });
       }
     };
     findUserInSheet();
-  }, [clerkUser]);
+  }, [appUser]);
 
-  if (!tasksUser || !clerkUser) {
+  if (!tasksUser) {
     return (
       <div className="flex min-h-screen w-full flex-col items-center justify-center">
         <p>Loading user data...</p>
@@ -55,7 +49,7 @@ export default function Dashboard() {
           <span>SheetFlow</span>
         </div>
         <div className="ml-auto">
-          <UserButton afterSignOutUrl="/"/>
+          <UserNav appUser={appUser} />
         </div>
       </header>
       <main className="flex-1 p-4 md:p-6 lg:p-8">

@@ -22,7 +22,7 @@ export async function createSession(email: string) {
   // In a real app, you would verify the user here (e.g., check password, send magic link)
   // For this demo, we'll create a session for any provided email.
 
-  const id = hashCode(email); // Use the standalone function
+  const id = hashCode(email);
   const username = email.split('@')[0];
   const initial = username.charAt(0).toUpperCase();
 

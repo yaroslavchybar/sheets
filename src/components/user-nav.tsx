@@ -15,16 +15,16 @@ import { LogOut, User as UserIcon } from 'lucide-react';
 import { deleteSession } from '@/app/actions';
 import type { AppUser } from '@/lib/types';
 
-export function UserNav({ user, appUser }: { user: AppUser; appUser: AppUser }) {
+export function UserNav({ appUser }: { appUser: AppUser }) {
   const handleLogout = async () => {
     await deleteSession();
   };
 
-  if (!user) {
+  if (!appUser) {
     return null;
   }
   
-  const displayName = user.username || user.firstName;
+  const displayName = appUser.username || appUser.firstName;
   const fallback = displayName.charAt(0).toUpperCase();
 
   return (
@@ -32,7 +32,7 @@ export function UserNav({ user, appUser }: { user: AppUser; appUser: AppUser }) 
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-8 w-8">
-            <AvatarImage src={user.photoUrl} alt={`@${displayName}`} />
+            <AvatarImage src={appUser.photoUrl} alt={`@${displayName}`} />
             <AvatarFallback>{fallback}</AvatarFallback>
           </Avatar>
         </Button>
@@ -42,7 +42,7 @@ export function UserNav({ user, appUser }: { user: AppUser; appUser: AppUser }) 
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">{displayName}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              {user.email}
+              {appUser.email}
             </p>
           </div>
         </DropdownMenuLabel>

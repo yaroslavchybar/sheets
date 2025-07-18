@@ -30,6 +30,7 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await createSession(values.email);
+      // The redirect will happen in the server action, so no need to handle it here.
     } catch (error) {
       console.error(error);
       // You could show a toast notification here for the user
