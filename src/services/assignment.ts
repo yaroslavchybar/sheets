@@ -39,15 +39,16 @@ export async function getDailyTasksForMember(
     return [];
   }
 
+  const allAccounts = await getAvailableAccounts();
+
   if (existingAssignments.length > 0) {
     // User already has tasks, fetch them using the stored IDs
-    const allAccounts = await getAvailableAccounts();
     const assignedIds = new Set(existingAssignments.map((a) => a.instagram_id));
     return allAccounts.filter((acc) => assignedIds.has(acc.id));
   }
 
-  // 3. If no assignments, create new ones
-  // Get all accounts assigned to *any* user today
+  // 3. If no assignments, create new ones.
+  // First, get all accounts assigned to *any* user today to ensure no duplicates are picked.
   const { data: allTodayAssignments, error: allTodayError } = await supabase
     .from('daily_assignments')
     .select('instagram_id')
@@ -61,21 +62,20 @@ export async function getDailyTasksForMember(
     return [];
   }
 
-  const allAccounts = await getAvailableAccounts();
   const assignedTodayIds = new Set(
     allTodayAssignments.map((a) => a.instagram_id)
   );
 
-  // Filter out already assigned accounts
+  // Filter out accounts that have already been assigned to someone today
   const unassignedAccounts = allAccounts.filter(
     (acc) => !assignedTodayIds.has(acc.id)
   );
 
-  // Take the required number of accounts for the current user
+  // Take the required number of accounts for the current user from the unassigned pool
   const newTasksForUser = unassignedAccounts.slice(0, assignmentsPerMember);
 
   if (newTasksForUser.length === 0) {
-    return []; // No new tasks available
+    return []; // No new tasks available to assign
   }
 
   // 4. Save the new assignments to the database
@@ -91,6 +91,7 @@ export async function getDailyTasksForMember(
 
   if (insertError) {
     console.error('Error saving new assignments:', insertError);
+    // Important: if the insert fails, we return an empty array to avoid showing tasks that aren't saved.
     return [];
   }
 
