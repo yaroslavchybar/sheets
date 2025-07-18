@@ -22,6 +22,11 @@ export default async function Home() {
     .eq('user_id', user.id)
     .single();
 
+  // If the user is an admin, redirect them to the user management page.
+  if (profile?.role === 'admin') {
+    redirect('/admin/users');
+  }
+
   const appUser: AppUser = {
     id: user.id,
     email: user.email!,
