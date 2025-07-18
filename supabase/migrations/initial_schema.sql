@@ -42,37 +42,32 @@ EXECUTE FUNCTION update_modified_column();
 -- Enable Row Level Security
 ALTER TABLE user_roles ENABLE ROW LEVEL SECURITY;
 
--- Policy to allow users to view their own role
-CREATE POLICY "Users can view their own role" ON user_roles
+-- **POLICY FIX**
+-- The policies are split to be more explicit and correct.
+-- 1. Users can view their OWN role. This is essential for the app to function for any logged-in user.
+CREATE POLICY "Users can view their own role" ON public.user_roles
 FOR SELECT USING (auth.uid() = user_id);
 
--- Policy for admins to manage roles
-CREATE POLICY "Admins can manage all roles" ON user_roles
+-- 2. Admins can view and manage ALL OTHER user roles.
+CREATE POLICY "Admins can manage all roles" ON public.user_roles
 FOR ALL USING (
     EXISTS (
-        SELECT 1 
-        FROM user_roles ur 
-        WHERE ur.user_id = auth.uid() AND ur.role = 'admin'
+        SELECT 1
+        FROM public.user_roles
+        WHERE user_id = auth.uid() AND role = 'admin'
     )
 );
 
 -- Trigger function to automatically create a role entry for new users
--- This function runs with the permissions of the user who created it (postgres)
--- and bypasses RLS to ensure it can insert the new role.
 CREATE OR REPLACE FUNCTION handle_new_user_role()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- Insert a new role entry for the new user
     INSERT INTO public.user_roles (user_id, role)
     VALUES (NEW.id, 'member');
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
--- We need to drop the old trigger before creating a new one
-DROP TRIGGER IF EXISTS on_auth_user_created_role ON auth.users;
-
--- Then create the new trigger
 CREATE TRIGGER on_auth_user_created_role
 AFTER INSERT ON auth.users
 FOR EACH ROW EXECUTE FUNCTION handle_new_user_role();
