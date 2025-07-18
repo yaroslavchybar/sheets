@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -20,6 +21,7 @@ export default function LoginPage() {
   const [isGitHubLoading, setGitHubLoading] = useState(false);
   const { toast } = useToast();
   const supabase = createClient();
+  const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -31,8 +33,10 @@ export default function LoginPage() {
         title: "Login Failed",
         description: error.message,
       });
+    } else {
+        router.push('/');
+        router.refresh();
     }
-    // Let onAuthStateChange handle success
     setIsLoading(false);
   };
   
@@ -70,7 +74,6 @@ export default function LoginPage() {
         redirectTo: redirectTo,
       },
     });
-    // No need to setGitHubLoading(false) here as the user will be redirected.
   };
 
   return (
