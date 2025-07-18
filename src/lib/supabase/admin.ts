@@ -1,19 +1,30 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { createClient as createServerClient } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 
 // This function requires an admin-level Supabase client to fetch all users.
-// We are using the user's session to check if they are an admin.
-// The RLS policies in the database will enforce that only admins can read all user roles.
+// We create a dedicated admin client here using the service role key.
+async function getAdminSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
+}
+
 export async function getAllUsersWithRoles() {
-  const supabase = createClient();
+  const supabaseAdmin = await getAdminSupabase();
+  const supabase = createServerClient();
 
-  // Note: We can't directly join user_roles with auth.users in a single query
-  // due to RLS and permissions. We fetch them separately and join them in code.
-
-  // 1. Fetch all users from Supabase Auth
-  const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+  // 1. Fetch all users from Supabase Auth using the admin client
+  const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers();
 
   if (authError) {
     console.error('Error fetching users from Supabase Auth:', authError);
@@ -27,28 +38,25 @@ export async function getAllUsersWithRoles() {
 
   if (rolesError) {
     console.error('Error fetching roles:', rolesError);
-    // Continue with an empty roles array to at least show users
   }
 
   // Create a map of user_id -> role for easy lookup
   const rolesMap = new Map(roles?.map(r => [r.user_id, r.role]) || []);
 
   // 3. Combine the data
-  const usersWithRoles = authUsers.users.map(user => ({
+  const usersWithRoles = authData.users.map(user => ({
     id: user.id,
     email: user.email!,
-    // Assign the role from our map, or default to 'member' if not found
     role: rolesMap.get(user.id) || 'member',
   }));
-  
-  // Sort users by email
+
   usersWithRoles.sort((a, b) => a.email.localeCompare(b.email));
 
   return usersWithRoles;
 }
 
 export async function updateUserRole(userId: string, role: 'admin' | 'member' | 'editor' | 'moderator') {
-    const supabase = createClient();
+    const supabase = createServerClient();
     
     // Check if the current user is an admin before proceeding
     const { data: { user } } = await supabase.auth.getUser();
@@ -77,6 +85,6 @@ export async function updateUserRole(userId: string, role: 'admin' | 'member' | 
     }
 
     revalidatePath('/admin/users');
-    revalidatePath('/'); // Revalidate the home page to update user nav
+    revalidatePath('/');
     return { error: null };
 }
