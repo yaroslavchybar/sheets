@@ -27,3 +27,17 @@ export type AppUser = {
   photoUrl: string;
   role?: 'admin' | 'member' | 'editor' | 'moderator';
 };
+
+// Represents an Instagram account from the Google Sheet
+export type InstagramAccount = {
+  rowNumber: number;
+  id: string;
+  userName: string;
+  fullName: string;
+  profileUrl: string;
+  bio: string;
+  followers: string;
+  following: string;
+  posts: string;
+  isSubscribed: boolean;
+};
