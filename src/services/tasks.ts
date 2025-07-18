@@ -7,6 +7,7 @@ import { updateSubscriptionStatus as updateSheetSubscription } from './google-sh
 
 /**
  * Marks a specific task as "subscribed" in both the database and Google Sheets.
+ * Also marks the task as "deleted" to hide it from the UI.
  * @param assignmentId The ID of the assignment record in the daily_assignments table.
  * @param rowNumber The row number in the Google Sheet to update.
  * @param subscribed The new boolean value for the subscription status.
@@ -23,7 +24,7 @@ export async function markTaskAsSubscribed(assignmentId: number, rowNumber: numb
   // 2. Update the Supabase database
   const { error } = await supabase
     .from('daily_assignments')
-    .update({ is_subscribed: subscribed })
+    .update({ is_subscribed: subscribed, is_deleted: true }) // Mark as deleted at the same time
     .eq('id', assignmentId);
 
   if (error) {

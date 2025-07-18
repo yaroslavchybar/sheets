@@ -25,9 +25,8 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from './ui/skeleton';
-import { markTaskAsDeleted, markTaskAsSubscribed } from '@/services/tasks';
+import { markTaskAsSubscribed } from '@/services/tasks';
 import Link from 'next/link';
-import { Trash2 } from 'lucide-react';
 
 interface SheetTableProps {
   tasks: InstagramAccount[];
@@ -44,11 +43,9 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
   }, [initialTasks]);
 
   const handleSubscriptionConfirm = async (task: InstagramAccount) => {
-    // Optimistically update the UI
+    // Optimistically remove from UI
     setTasks((prevTasks) =>
-      prevTasks.map((t) =>
-        t.assignmentId === task.assignmentId ? { ...t, isSubscribed: true } : t
-      )
+      prevTasks.filter((t) => t.assignmentId !== task.assignmentId)
     );
 
     const { error } = await markTaskAsSubscribed(
@@ -61,31 +58,6 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
       toast({
         variant: 'destructive',
         title: 'Update Failed',
-        description: error.message,
-      });
-      // Revert the change if the API call fails
-      setTasks((prevTasks) =>
-        prevTasks.map((t) =>
-          t.assignmentId === task.assignmentId
-            ? { ...t, isSubscribed: false }
-            : t
-        )
-      );
-    }
-  };
-
-  const handleDeleteConfirm = async (task: InstagramAccount) => {
-    // Optimistically remove from UI
-    setTasks((prevTasks) =>
-      prevTasks.filter((t) => t.assignmentId !== task.assignmentId)
-    );
-
-    const { error } = await markTaskAsDeleted(task.assignmentId);
-
-    if (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Delete Failed',
         description: error.message,
       });
       // Revert if the API call fails
@@ -145,7 +117,7 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
                             <span className="font-semibold text-foreground">
                               {task.userName}
                             </span>{' '}
-                            as subscribed. This cannot be undone from the app.
+                            as subscribed and remove it from your list. This cannot be undone from the app.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -163,7 +135,6 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
                 <TableCell className="font-medium">{task.userName}</TableCell>
                 <TableCell>{task.fullName}</TableCell>
                 <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-2">
                     <Button variant="link" size="sm" asChild>
                       <Link
                         href={task.profileUrl}
@@ -173,37 +144,6 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
                         View Profile
                       </Link>
                     </Button>
-
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <Trash2 className="h-4 w-4" />
-                          <span className="sr-only">Delete Task</span>
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will remove the account{' '}
-                            <span className="font-semibold text-foreground">
-                              {task.userName}
-                            </span>{' '}
-                            from your daily list. You cannot undo this action.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            onClick={() => handleDeleteConfirm(task)}
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
                 </TableCell>
               </TableRow>
             ))}
