@@ -11,6 +11,16 @@ export async function getDailyTasksForMember(
   const supabase = createClient();
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
+  // --- Daily Cleanup ---
+  // Delete any of this user's incomplete tasks from previous days.
+  // This returns them to the general assignment pool.
+  await supabase
+    .from('daily_assignments')
+    .delete()
+    .eq('user_id', userId)
+    .eq('is_subscribed', false)
+    .lt('assignment_date', today);
+  
   // 1. Get the user's current assignment limit first. This is crucial.
   const { data: userRole, error: userRoleError } = await supabase
     .from('user_roles')
@@ -29,7 +39,7 @@ export async function getDailyTasksForMember(
       return [];
   }
 
-  // 2. Check how many assignments were ALREADY generated for this user today (deleted or not)
+  // 2. Check how many assignments were ALREADY generated for this user today
   const { count: assignmentsGeneratedCount, error: countError } = await supabase
     .from('daily_assignments')
     .select('*', { count: 'exact', head: true })
