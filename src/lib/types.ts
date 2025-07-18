@@ -20,10 +20,8 @@ export type User = {
 
 // Represents the user object for our app's session
 export type AppUser = {
-  id: number;
+  id: string;
   email: string;
-  firstName: string;
-  lastName?: string;
   username?: string;
   photoUrl: string;
 };

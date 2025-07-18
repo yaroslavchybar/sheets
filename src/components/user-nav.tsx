@@ -12,20 +12,24 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { LogOut, User as UserIcon } from 'lucide-react';
-import { deleteSession } from '@/app/actions';
 import type { AppUser } from '@/lib/types';
+import { createClient } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation';
 
 export function UserNav({ appUser }: { appUser: AppUser }) {
+  const router = useRouter();
   const handleLogout = async () => {
-    await deleteSession();
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.refresh();
   };
 
   if (!appUser) {
     return null;
   }
   
-  const displayName = appUser.username || appUser.firstName;
-  const fallback = displayName.charAt(0).toUpperCase();
+  const displayName = appUser.username;
+  const fallback = displayName?.charAt(0).toUpperCase();
 
   return (
     <DropdownMenu>

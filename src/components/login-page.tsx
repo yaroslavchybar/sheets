@@ -9,8 +9,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
-import { createSession } from '@/app/actions';
 import { useState } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import { useToast } from './ui/use-toast';
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
@@ -18,6 +19,7 @@ const formSchema = z.object({
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -28,15 +30,31 @@ export default function LoginPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    try {
-      await createSession(values.email);
-      // The redirect will happen in the server action, so no need to handle it here.
-    } catch (error) {
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithOtp({
+      email: values.email,
+      options: {
+        // set this to false if you do not want the user to be automatically signed up
+        shouldCreateUser: true,
+        emailRedirectTo: `${location.origin}/auth/callback`,
+      },
+    });
+
+    if (error) {
       console.error(error);
-      // You could show a toast notification here for the user
-    } finally {
-      setIsLoading(false);
+      toast({
+        variant: "destructive",
+        title: "Authentication Failed",
+        description: error.message,
+      });
+    } else {
+      toast({
+        title: "Check your email",
+        description: "We've sent you a magic link to sign in.",
+      });
     }
+
+    setIsLoading(false);
   }
   
   return (
@@ -47,7 +65,7 @@ export default function LoginPage() {
             <Sheet className="h-8 w-8" />
           </div>
           <CardTitle className="text-2xl">SheetFlow</CardTitle>
-          <CardDescription>Please sign in to continue.</CardDescription>
+          <CardDescription>Enter your email below to sign in.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -71,7 +89,7 @@ export default function LoginPage() {
                 )}
               />
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? 'Signing In...' : 'Sign In'}
+                {isLoading ? 'Sending Link...' : 'Send Magic Link'}
               </Button>
             </form>
           </Form>
