@@ -36,10 +36,10 @@ export async function createSession(email: string) {
 
   cookies().set('session', JSON.stringify(sessionUser), {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: true, // Required for sameSite: 'none'
     maxAge: 60 * 60 * 24 * 7, // One week
     path: '/',
-    sameSite: 'lax',
+    sameSite: 'none', // Allows cookie to be sent in cross-site requests (i.e., from an iframe)
   });
 
   redirect('/');
