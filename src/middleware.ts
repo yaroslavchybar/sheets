@@ -1,5 +1,7 @@
+
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import type { CookieOptions } from '@supabase/ssr'
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
@@ -16,7 +18,7 @@ export async function middleware(request: NextRequest) {
         get(name: string) {
           return request.cookies.get(name)?.value
         },
-        set(name: string, value: string, options) {
+        set(name: string, value: string, options: CookieOptions) {
           request.cookies.set({
             name,
             value,
@@ -31,9 +33,11 @@ export async function middleware(request: NextRequest) {
             name,
             value,
             ...options,
+            sameSite: 'none',
+            secure: true,
           })
         },
-        remove(name: string, options) {
+        remove(name: string, options: CookieOptions) {
           request.cookies.set({
             name,
             value: '',
@@ -48,6 +52,8 @@ export async function middleware(request: NextRequest) {
             name,
             value: '',
             ...options,
+            sameSite: 'none',
+            secure: true,
           })
         },
       },
@@ -62,9 +68,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
-  if (!user && !request.nextUrl.pathname.startsWith('/login')) {
-    return NextResponse.redirect(new URL('/login', request.url))
+  if (!user && !request.nextUrl.pathname.startsWith('/login') && !request.nextUrl.pathname.startsWith('/auth')) {
+     return NextResponse.redirect(new URL('/login', request.url))
   }
+
 
   return response
 }
@@ -78,6 +85,6 @@ export const config = {
      * - favicon.ico (favicon file)
      * - /auth (auth routes)
      */
-    '/((?!_next/static|_next/image|favicon.ico|auth/callback|.*\\.png$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.png$).*)',
   ],
 }
