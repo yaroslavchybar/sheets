@@ -92,7 +92,7 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
           </TableHeader>
           <TableBody>
             {tasks.map((task) => (
-              <TableRow key={task.id}>
+              <TableRow key={task.rowNumber}>
                 <TableCell>
                   <Checkbox
                     id={`check-${task.rowNumber}`}
