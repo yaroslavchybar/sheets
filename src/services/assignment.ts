@@ -10,6 +10,7 @@ export async function getDailyTasksForMember(
 ): Promise<InstagramAccount[]> {
   const supabase = createClient();
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const todayStart = new Date(today).toISOString();
 
   // --- Daily Cleanup ---
   // Delete any of this user's tasks from any day that is NOT today.
@@ -39,19 +40,31 @@ export async function getDailyTasksForMember(
     return [];
   }
 
-  // 2. Check how many assignments are ALREADY in the queue for this user today
-  const { count: assignmentsInQueue, error: countError } = await supabase
+  // 2. Check how many tasks are ALREADY completed or in the queue for this user today
+  const { count: pendingCount, error: pendingError } = await supabase
     .from('daily_assignments')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId)
     .eq('assignment_date', today);
 
-  if (countError) {
-    console.error('Error checking for existing assignments:', countError);
+  if (pendingError) {
+    console.error('Error checking for pending assignments:', pendingError);
     return [];
   }
 
-  const tasksToAssignCount = assignmentLimit - (assignmentsInQueue ?? 0);
+  const { count: subscribedTodayCount, error: subscribedError } = await supabase
+    .from('subscriptions')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .gte('subscribed_at', todayStart);
+
+  if (subscribedError) {
+    console.error('Error checking for today\'s subscriptions:', subscribedError);
+    return [];
+  }
+
+  const totalGeneratedToday = (pendingCount ?? 0) + (subscribedTodayCount ?? 0);
+  const tasksToAssignCount = assignmentLimit - totalGeneratedToday;
 
   // 3. If the user needs more tasks, fetch and assign them
   if (tasksToAssignCount > 0) {
@@ -99,15 +112,14 @@ export async function getDailyTasksForMember(
           assignment_date: today,
         }));
         
-        // This insert is safe from race conditions because of the database-level unique constraint
-        // on (instagram_id, assignment_date) which we can add. For now, we rely on filtering.
         const { error: insertError } = await supabase
           .from('daily_assignments')
-          .insert(newAssignmentRecords);
+          .upsert(newAssignmentRecords, { 
+            onConflict: 'instagram_id, assignment_date',
+            ignoreDuplicates: true 
+        });
 
         if (insertError) {
-          // It's possible a race condition occurred. We can log it but proceed,
-          // as the user will get fewer tasks this time but more on the next reload.
           console.error('Error saving new assignments (might be a race condition):', insertError.message);
         }
       }
