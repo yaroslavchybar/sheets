@@ -25,6 +25,7 @@ import type { AppUser } from '@/lib/types';
 import { UserAssignmentInput } from './_components/user-assignment-input';
 import { AddUserDialog } from './_components/add-user-dialog';
 import { Separator } from '@/components/ui/separator';
+import { DayResetButton } from './_components/day-reset-button';
 
 export default async function AdminUsersPage() {
   const supabase = createClient();
@@ -80,7 +81,10 @@ export default async function AdminUsersPage() {
                   Manage user roles, daily assignment limits, and view activity.
                 </CardDescription>
               </div>
-              <AddUserDialog />
+              <div className='flex flex-col sm:flex-row gap-2'>
+                <DayResetButton />
+                <AddUserDialog />
+              </div>
             </div>
           </CardHeader>
           <CardContent>

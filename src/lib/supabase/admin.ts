@@ -304,3 +304,37 @@ export async function createUser(
   revalidatePath('/admin/users');
   return { error: null };
 }
+
+export async function triggerDayReset() {
+  const supabase = createServerClient();
+
+  // 1. Check if the current user is an admin
+  const { data: { user: currentUser } } = await supabase.auth.getUser();
+  if (!currentUser) {
+    return { error: { message: 'You must be logged in to perform this action.' } };
+  }
+  const { data: adminProfile, error: adminError } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', currentUser.id)
+    .single();
+  if (adminError || adminProfile?.role !== 'admin') {
+    return { error: { message: 'You do not have permission to reset the day.' } };
+  }
+
+  // 2. Delete all assignments that have not been completed
+  const { error: deleteError } = await supabase
+    .from('daily_assignments')
+    .delete()
+    .eq('is_subscribed', false);
+
+  if (deleteError) {
+    return { error: { message: `Failed to clear pending tasks: ${deleteError.message}` } };
+  }
+
+  // 3. Revalidate paths to update UI for all users
+  revalidatePath('/admin/users'); // For admin stats
+  revalidatePath('/'); // For member dashboards
+  
+  return { error: null };
+}
