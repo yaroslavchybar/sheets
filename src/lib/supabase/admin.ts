@@ -26,16 +26,7 @@ export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
   const supabase = createServerClient();
   const today = new Date().toISOString().split('T')[0];
 
-  // 1. Fetch all users from Supabase Auth using the admin client
-  const { data: authData, error: authError } =
-    await supabaseAdmin.auth.admin.listUsers();
-
-  if (authError) {
-    console.error('Error fetching users from Supabase Auth:', authError);
-    return [];
-  }
-
-  // 2. Fetch all roles from our user_roles table
+  // 1. Fetch all roles from our user_roles table. This is our source of truth.
   const { data: rolesData, error: rolesError } = await supabase
     .from('user_roles')
     .select('user_id, role, daily_assignments_limit');
@@ -45,43 +36,66 @@ export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
     return [];
   }
 
-  // 3. Fetch subscribed counts for today
+  // Get user IDs from the roles data
+  const userIds = rolesData.map((r) => r.user_id);
+  if (userIds.length === 0) {
+    return [];
+  }
+
+  // 2. Fetch the corresponding users from Supabase Auth
+  const { data: authData, error: authError } =
+    await supabaseAdmin.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000, // Adjust if you have more users
+    });
+
+  if (authError) {
+    console.error('Error fetching users from Supabase Auth:', authError);
+    return [];
+  }
+  
+  // Filter auth users to only include those that exist in our user_roles table
+  const existingAuthUsers = authData.users.filter(u => userIds.includes(u.id));
+
+  // 3. Fetch subscribed counts for today for the existing users
   const { data: subscribedTodayData, error: subscribedTodayError } =
     await supabase
       .from('daily_assignments')
       .select('user_id')
       .eq('is_subscribed', true)
-      .eq('assignment_date', today);
+      .eq('assignment_date', today)
+      .in('user_id', userIds);
 
   if (subscribedTodayError) {
     console.error(
       'Error fetching today subscribed counts:',
       subscribedTodayError
     );
-    return [];
+    // Continue with what we have
   }
 
-  // 4. Fetch total subscribed counts
+  // 4. Fetch total subscribed counts for the existing users
   const { data: subscribedTotalData, error: subscribedTotalError } =
     await supabase
       .from('daily_assignments')
       .select('user_id')
-      .eq('is_subscribed', true);
+      .eq('is_subscribed', true)
+      .in('user_id', userIds);
 
   if (subscribedTotalError) {
     console.error(
       'Error fetching total subscribed counts:',
       subscribedTotalError
     );
-    return [];
+    // Continue with what we have
   }
 
   // Create helper maps
   const rolesMap = new Map(
-    rolesData?.map((r) => [
+    rolesData.map((r) => [
       r.user_id,
       { role: r.role, daily_assignments_limit: r.daily_assignments_limit },
-    ]) || []
+    ])
   );
 
   const subscribedTodayCountMap = new Map<string, number>();
@@ -104,13 +118,13 @@ export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
     }
   }
 
-  // 5. Combine all data
-  const usersWithRoles: UserWithRole[] = authData.users.map((user) => {
+  // 5. Combine all data, using the existing auth users as the base
+  const usersWithRoles: UserWithRole[] = existingAuthUsers.map((user) => {
     const roleInfo = rolesMap.get(user.id);
     return {
       id: user.id,
       email: user.email!,
-      role: (roleInfo?.role as UserRole) || 'member',
+      role: (roleInfo?.role as UserRole) || 'member', // Fallback, though should always exist
       daily_assignments_limit: roleInfo?.daily_assignments_limit ?? 10,
       subscribed_today_count: subscribedTodayCountMap.get(user.id) || 0,
       subscribed_total_count: subscribedTotalCountMap.get(user.id) || 0,
