@@ -28,6 +28,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from './ui/skeleton';
 import { markTaskAsSubscribed } from '@/services/tasks';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
+import { useTransition } from 'react';
 
 interface SheetTableProps {
   tasks: InstagramAccount[];
@@ -36,34 +38,58 @@ interface SheetTableProps {
 export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
   const [tasks, setTasks] = React.useState<InstagramAccount[]>(initialTasks);
   const [isClient, setIsClient] = React.useState(false);
+  const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
+  const [currentUserId, setCurrentUserId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     setIsClient(true);
     setTasks(initialTasks);
+
+    const getUser = async () => {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            setCurrentUserId(user.id);
+        }
+    }
+    getUser();
+
   }, [initialTasks]);
 
-  const handleSubscriptionConfirm = async (task: InstagramAccount) => {
-    // Optimistically remove from UI
-    setTasks((prevTasks) =>
-      prevTasks.filter((t) => t.assignmentId !== task.assignmentId)
-    );
-
-    const { error } = await markTaskAsSubscribed(
-      task.assignmentId,
-      task.rowNumber,
-      true
-    );
-
-    if (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Update Failed',
-        description: error.message,
-      });
-      // Revert if the API call fails
-      setTasks(initialTasks);
+  const handleSubscriptionConfirm = (task: InstagramAccount) => {
+    if (!currentUserId) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Could not identify current user. Please refresh.',
+        });
+        return;
     }
+
+    startTransition(async () => {
+        // Optimistically remove from UI
+        setTasks((prevTasks) =>
+            prevTasks.filter((t) => t.assignmentId !== task.assignmentId)
+        );
+
+        const { error } = await markTaskAsSubscribed(
+            currentUserId,
+            task.id,
+            task.assignmentId,
+            task.rowNumber,
+        );
+
+        if (error) {
+            toast({
+                variant: 'destructive',
+                title: 'Update Failed',
+                description: error.message,
+            });
+            // Revert if the API call fails
+            setTasks(initialTasks);
+        }
+    });
   };
 
   if (!isClient) {
@@ -109,12 +135,10 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
                     <AlertDialogTrigger asChild>
                       <Checkbox
                         id={`check-${task.assignmentId}`}
-                        checked={task.isSubscribed}
-                        disabled={task.isSubscribed}
                         aria-label={`Mark account ${task.userName} as subscribed`}
+                        disabled={isPending}
                       />
                     </AlertDialogTrigger>
-                    {!task.isSubscribed && (
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>Confirm Subscription</AlertDialogTitle>
@@ -135,7 +159,6 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
-                    )}
                   </AlertDialog>
                 </TableCell>
                 <TableCell className="font-medium">{task.userName}</TableCell>
@@ -165,13 +188,11 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
                   <AlertDialogTrigger asChild>
                     <Checkbox
                       id={`check-mobile-${task.assignmentId}`}
-                      checked={task.isSubscribed}
-                      disabled={task.isSubscribed}
                       aria-label={`Mark account ${task.userName} as subscribed`}
                       className="h-5 w-5"
+                      disabled={isPending}
                     />
                   </AlertDialogTrigger>
-                  {!task.isSubscribed && (
                     <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogTitle>Confirm Subscription</AlertDialogTitle>
@@ -192,7 +213,6 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
-                  )}
                 </AlertDialog>
                 <span className="flex-1 font-medium truncate">{task.userName}</span>
                 <Button variant="link" size="sm" asChild>

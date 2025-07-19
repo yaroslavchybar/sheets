@@ -39,8 +39,6 @@ export type InstagramAccount = {
   userName: string;
   fullName: string;
   profileUrl: string;
-  isSubscribed: boolean;
-  isDeleted: boolean;
 };
 
 // Represents application settings

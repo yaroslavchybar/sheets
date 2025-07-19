@@ -22,9 +22,10 @@ async function getAdminSupabase() {
 }
 
 export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
-  const supabaseAdmin = await getAdminSupabase();
   const supabase = createServerClient();
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+
 
   // 1. Fetch all roles from our user_roles table. This is our source of truth.
   const { data: rolesData, error: rolesError } = await supabase
@@ -43,6 +44,7 @@ export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
   }
 
   // 2. Fetch the corresponding users from Supabase Auth
+  const supabaseAdmin = await getAdminSupabase();
   const { data: authData, error: authError } =
     await supabaseAdmin.auth.admin.listUsers({
       page: 1,
@@ -57,66 +59,56 @@ export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
   // Filter auth users to only include those that exist in our user_roles table
   const existingAuthUsers = authData.users.filter(u => userIds.includes(u.id));
 
-  // 3. Fetch subscribed counts for today for the existing users
+  // 3. Fetch subscribed counts for today for the existing users from the new table
   const { data: subscribedTodayData, error: subscribedTodayError } =
     await supabase
-      .from('daily_assignments')
-      .select('user_id')
-      .eq('is_subscribed', true)
-      .eq('assignment_date', today)
+      .from('subscriptions')
+      .select('user_id', { count: 'exact' })
+      .gte('subscribed_at', todayStart)
       .in('user_id', userIds);
 
   if (subscribedTodayError) {
-    console.error(
-      'Error fetching today subscribed counts:',
-      subscribedTodayError
-    );
-    // Continue with what we have
+    console.error('Error fetching today subscribed counts:', subscribedTodayError);
   }
 
-  // 4. Fetch total subscribed counts for the existing users
+  // 4. Fetch total subscribed counts for the existing users from the new table
   const { data: subscribedTotalData, error: subscribedTotalError } =
     await supabase
-      .from('daily_assignments')
-      .select('user_id')
-      .eq('is_subscribed', true)
+      .from('subscriptions')
+      .select('user_id', { count: 'exact' })
       .in('user_id', userIds);
 
   if (subscribedTotalError) {
-    console.error(
-      'Error fetching total subscribed counts:',
-      subscribedTotalError
-    );
-    // Continue with what we have
+    console.error('Error fetching total subscribed counts:', subscribedTotalError);
   }
+  
+  // Re-fetch counts using a different method if the first one failed or returned null
+  const getCounts = async (gteFilter?: string) => {
+    const counts = new Map<string, number>();
+    for (const userId of userIds) {
+        let query = supabase.from('subscriptions').select('*', { count: 'exact', head: true }).eq('user_id', userId);
+        if (gteFilter) {
+            query = query.gte('subscribed_at', gteFilter);
+        }
+        const { count, error } = await query;
+        if (!error && count !== null) {
+            counts.set(userId, count);
+        }
+    }
+    return counts;
+  };
 
-  // Create helper maps
+  const subscribedTodayCountMap = await getCounts(todayStart);
+  const subscribedTotalCountMap = await getCounts();
+
+
+  // Create helper map for roles
   const rolesMap = new Map(
     rolesData.map((r) => [
       r.user_id,
       { role: r.role, daily_assignments_limit: r.daily_assignments_limit },
     ])
   );
-
-  const subscribedTodayCountMap = new Map<string, number>();
-  if (subscribedTodayData) {
-    for (const record of subscribedTodayData) {
-      subscribedTodayCountMap.set(
-        record.user_id,
-        (subscribedTodayCountMap.get(record.user_id) || 0) + 1
-      );
-    }
-  }
-
-  const subscribedTotalCountMap = new Map<string, number>();
-  if (subscribedTotalData) {
-    for (const record of subscribedTotalData) {
-      subscribedTotalCountMap.set(
-        record.user_id,
-        (subscribedTotalCountMap.get(record.user_id) || 0) + 1
-      );
-    }
-  }
 
   // 5. Combine all data, using the existing auth users as the base
   const usersWithRoles: UserWithRole[] = existingAuthUsers.map((user) => {

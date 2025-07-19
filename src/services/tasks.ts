@@ -6,55 +6,57 @@ import { revalidatePath } from 'next/cache';
 import { updateSubscriptionStatus as updateSheetSubscription } from './google-sheets';
 
 /**
- * Marks a specific task as "subscribed" in both the database and Google Sheets.
- * Also marks the task as "deleted" to hide it from the UI.
+ * Creates a new subscription record and deletes the task from the daily assignments.
+ * Also updates the Google Sheet.
+ * @param userId The ID of the user subscribing.
+ * @param instagramId The ID of the Instagram account being subscribed to.
  * @param assignmentId The ID of the assignment record in the daily_assignments table.
  * @param rowNumber The row number in the Google Sheet to update.
- * @param subscribed The new boolean value for the subscription status.
  */
-export async function markTaskAsSubscribed(assignmentId: number, rowNumber: number, subscribed: boolean) {
+export async function markTaskAsSubscribed(
+  userId: string,
+  instagramId: string,
+  assignmentId: number,
+  rowNumber: number
+) {
   const supabase = createClient();
-  
+
   // 1. Update the Google Sheet first
-  const sheetSuccess = await updateSheetSubscription(rowNumber, subscribed);
+  const sheetSuccess = await updateSheetSubscription(rowNumber, true);
   if (!sheetSuccess) {
     return { error: { message: 'Failed to update the Google Sheet.' } };
   }
 
-  // 2. Update the Supabase database
-  const { error } = await supabase
+  // 2. Create a new record in the subscriptions table
+  const { error: insertError } = await supabase
+    .from('subscriptions')
+    .insert({ user_id: userId, instagram_id: instagramId });
+
+  if (insertError) {
+    // If the database insert fails, revert the sheet change and return the error.
+    await updateSheetSubscription(rowNumber, false); // Attempt to revert
+    // This could be a duplicate subscription attempt, which is not an error.
+    if (insertError.code === '23505') { // unique_violation
+        // Still need to remove the task from the daily assignments.
+    } else {
+        return { error: { message: `Database error: ${insertError.message}` }};
+    }
+  }
+  
+  // 3. Delete the task from the daily assignments table, as it is now complete.
+  const { error: deleteError } = await supabase
     .from('daily_assignments')
-    .update({ is_subscribed: subscribed, is_deleted: true }) // Mark as deleted at the same time
+    .delete()
     .eq('id', assignmentId);
 
-  if (error) {
-    // If the database update fails, we should ideally try to revert the sheet change.
-    // For now, we'll just return the error.
-    await updateSheetSubscription(rowNumber, !subscribed); // Attempt to revert
-    return { error };
+  if (deleteError) {
+      // This is a more critical error. We should inform the user.
+      // The subscription is recorded, but the task remains in their list.
+      return { error: { message: `Failed to remove task from list: ${deleteError.message}`}};
   }
+
 
   revalidatePath('/'); // Revalidate the member's dashboard
-  return { error: null };
-}
-
-/**
- * Marks a specific task as "deleted" in the database.
- * This effectively hides it from the user's daily view.
- * @param assignmentId The ID of the assignment record in the daily_assignments table.
- */
-export async function markTaskAsDeleted(assignmentId: number) {
-  const supabase = createClient();
-
-  const { error } = await supabase
-    .from('daily_assignments')
-    .update({ is_deleted: true })
-    .eq('id', assignmentId);
-
-  if (error) {
-    return { error };
-  }
-
-  revalidatePath('/'); // Revalidate the member's dashboard to remove the task
+  revalidatePath('/admin/users'); // Revalidate admin stats
   return { error: null };
 }
