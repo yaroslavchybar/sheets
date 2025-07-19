@@ -37,12 +37,12 @@ import { useState, useTransition } from 'react';
 import { UserPlus } from 'lucide-react';
 
 const formSchema = z.object({
-  email: z.string().email({ message: 'Please enter a valid email.' }),
+  email: z.string().email({ message: 'Пожалуйста, введите действительный email.' }),
   password: z
     .string()
-    .min(6, { message: 'Password must be at least 6 characters.' }),
+    .min(6, { message: 'Пароль должен содержать не менее 6 символов.' }),
   role: z.enum(['admin', 'member'], {
-    required_error: 'You need to select a role.',
+    required_error: 'Вам нужно выбрать роль.',
   }),
 });
 
@@ -71,13 +71,13 @@ export function AddUserDialog() {
       if (error) {
         toast({
           variant: 'destructive',
-          title: 'Creation Failed',
+          title: 'Ошибка создания',
           description: error.message,
         });
       } else {
         toast({
-          title: 'User Created',
-          description: `Successfully created user ${values.email}.`,
+          title: 'Пользователь создан',
+          description: `Пользователь ${values.email} успешно создан.`,
         });
         form.reset();
         setIsOpen(false);
@@ -90,14 +90,14 @@ export function AddUserDialog() {
       <DialogTrigger asChild>
         <Button>
           <UserPlus className="mr-2" />
-          Add New User
+          Добавить пользователя
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Create New User</DialogTitle>
+          <DialogTitle>Создать нового пользователя</DialogTitle>
           <DialogDescription>
-            Enter the details for the new user. They can change their password later.
+            Введите данные для нового пользователя. Он сможет изменить свой пароль позже.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -124,7 +124,7 @@ export function AddUserDialog() {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Password</FormLabel>
+                  <FormLabel>Пароль</FormLabel>
                   <FormControl>
                     <Input
                       type="password"
@@ -141,7 +141,7 @@ export function AddUserDialog() {
               name="role"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Role</FormLabel>
+                  <FormLabel>Роль</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
@@ -149,12 +149,12 @@ export function AddUserDialog() {
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a role" />
+                        <SelectValue placeholder="Выберите роль" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="member">Member</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="member">Участник</SelectItem>
+                      <SelectItem value="admin">Админ</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -166,11 +166,11 @@ export function AddUserDialog() {
         <DialogFooter>
           <DialogClose asChild>
             <Button variant="outline" disabled={isPending}>
-              Cancel
+              Отмена
             </Button>
           </DialogClose>
           <Button type="submit" form="add-user-form" disabled={isPending}>
-            {isPending ? 'Creating...' : 'Create User'}
+            {isPending ? 'Создание...' : 'Создать пользователя'}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -33,9 +33,9 @@ export default function Dashboard({ user, tasks }: DashboardProps) {
       <main className="flex-1 p-4 md:p-6 lg:p-8">
         <Card>
           <CardHeader>
-            <CardTitle>Daily Instagram Accounts</CardTitle>
+            <CardTitle>Ежедневные аккаунты Instagram</CardTitle>
             <CardDescription>
-              Your list of accounts to subscribe to for today.
+              Ваш список аккаунтов для подписки на сегодня.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -43,7 +43,7 @@ export default function Dashboard({ user, tasks }: DashboardProps) {
               <SheetTable tasks={tasks} />
             ) : (
               <div className="text-center text-muted-foreground">
-                Welcome, Admin! You do not have daily tasks.
+                Добро пожаловать, админ! У вас нет ежедневных задач.
               </div>
             )}
           </CardContent>

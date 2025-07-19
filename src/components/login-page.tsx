@@ -28,10 +28,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
 const formSchema = z.object({
-  email: z.string().email({ message: 'Please enter a valid email address.' }),
+  email: z.string().email({ message: 'Пожалуйста, введите действительный email.' }),
   password: z
     .string()
-    .min(6, { message: 'Password must be at least 6 characters long.' }),
+    .min(6, { message: 'Пароль должен содержать не менее 6 символов.' }),
 });
 
 export default function LoginPage() {
@@ -58,13 +58,13 @@ export default function LoginPage() {
     if (error) {
       toast({
         variant: 'destructive',
-        title: 'Authentication Failed',
+        title: 'Ошибка аутентификации',
         description: error.message,
       });
     } else {
       toast({
-        title: 'Signed In',
-        description: "You've been successfully signed in.",
+        title: 'Вход выполнен',
+        description: "Вы успешно вошли в систему.",
       });
       router.push('/');
       router.refresh();
@@ -81,7 +81,7 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl">F/U</CardTitle>
           <CardDescription>
-            Sign in to your account to continue.
+            Войдите в свой аккаунт, чтобы продолжить.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -110,7 +110,7 @@ export default function LoginPage() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <Label htmlFor="password">Password</Label>
+                    <Label htmlFor="password">Пароль</Label>
                     <FormControl>
                       <Input
                         id="password"
@@ -124,7 +124,7 @@ export default function LoginPage() {
                 )}
               />
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? 'Processing...' : 'Sign In'}
+                {isLoading ? 'Обработка...' : 'Войти'}
               </Button>
             </form>
           </Form>

@@ -21,8 +21,8 @@ const formSchema = z.object({
   limit: z.coerce
     .number()
     .int()
-    .min(0, { message: 'Must be 0 or more.' })
-    .max(100, { message: 'Cannot exceed 100.' }),
+    .min(0, { message: 'Должно быть 0 или больше.' })
+    .max(100, { message: 'Не может превышать 100.' }),
 });
 
 type UserAssignmentInputProps = {
@@ -53,14 +53,14 @@ export function UserAssignmentInput({
       if (error) {
         toast({
           variant: 'destructive',
-          title: 'Update Failed',
+          title: 'Ошибка обновления',
           description: error.message,
         });
         form.reset({ limit: currentLimit }); // Reset on failure
       } else {
         toast({
-          title: 'Limit Updated',
-          description: `Assignment limit has been saved.`,
+          title: 'Лимит обновлен',
+          description: `Лимит назначений сохранен.`,
         });
         form.reset({ limit: values.limit }); // Reset to new value to clear dirty state
       }
@@ -97,7 +97,7 @@ export function UserAssignmentInput({
           disabled={isPending || !isDirty}
         >
           <Save className="h-4 w-4" />
-          <span className="sr-only">Save</span>
+          <span className="sr-only">Сохранить</span>
         </Button>
       </form>
     </Form>

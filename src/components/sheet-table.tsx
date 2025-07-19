@@ -61,8 +61,8 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
     if (!currentUserId) {
         toast({
             variant: 'destructive',
-            title: 'Error',
-            description: 'Could not identify current user. Please refresh.',
+            title: 'Ошибка',
+            description: 'Не удалось определить текущего пользователя. Пожалуйста, обновите страницу.',
         });
         return;
     }
@@ -83,7 +83,7 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
         if (error) {
             toast({
                 variant: 'destructive',
-                title: 'Update Failed',
+                title: 'Ошибка обновления',
                 description: error.message,
             });
             // Revert if the API call fails
@@ -109,7 +109,7 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
   if (tasks.length === 0) {
     return (
         <div className="p-4 text-center text-muted-foreground">
-          No tasks assigned for today.
+          На сегодня нет назначенных задач.
         </div>
       )
   }
@@ -121,10 +121,10 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[80px]">Subscribed</TableHead>
-              <TableHead>Username</TableHead>
-              <TableHead>Full Name</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="w-[80px]">Подписан</TableHead>
+              <TableHead>Имя пользователя</TableHead>
+              <TableHead>Полное имя</TableHead>
+              <TableHead className="text-right">Действия</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -135,27 +135,27 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
                     <AlertDialogTrigger asChild>
                       <Checkbox
                         id={`check-${task.assignmentId}`}
-                        aria-label={`Mark account ${task.userName} as subscribed`}
+                        aria-label={`Отметить аккаунт ${task.userName} как подписанный`}
                         disabled={isPending}
                       />
                     </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Confirm Subscription</AlertDialogTitle>
+                          <AlertDialogTitle>Подтвердить подписку</AlertDialogTitle>
                           <AlertDialogDescription>
-                            This will mark the account{' '}
+                            Это отметит аккаунт{' '}
                             <span className="font-semibold text-foreground">
                               {task.userName}
                             </span>{' '}
-                            as subscribed and remove it from your list. This cannot be undone from the app.
+                            как подписанный и удалит его из вашего списка. Это действие нельзя отменить из приложения.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogCancel>Отмена</AlertDialogCancel>
                           <AlertDialogAction
                             onClick={() => handleSubscriptionConfirm(task)}
                           >
-                            Confirm
+                            Подтвердить
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
@@ -170,7 +170,7 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        View Profile
+                        Посмотреть профиль
                       </Link>
                     </Button>
                 </TableCell>
@@ -188,28 +188,28 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
                   <AlertDialogTrigger asChild>
                     <Checkbox
                       id={`check-mobile-${task.assignmentId}`}
-                      aria-label={`Mark account ${task.userName} as subscribed`}
+                      aria-label={`Отметить аккаунт ${task.userName} как подписанный`}
                       className="h-5 w-5"
                       disabled={isPending}
                     />
                   </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Confirm Subscription</AlertDialogTitle>
+                        <AlertDialogTitle>Подтвердить подписку</AlertDialogTitle>
                         <AlertDialogDescription>
-                          This will mark the account{' '}
+                          Это отметит аккаунт{' '}
                           <span className="font-semibold text-foreground">
                             {task.userName}
                           </span>{' '}
-                          as subscribed and remove it from your list. This cannot be undone from the app.
+                          как подписанный и удалит его из вашего списка. Это действие нельзя отменить из приложения.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel>Отмена</AlertDialogCancel>
                         <AlertDialogAction
                           onClick={() => handleSubscriptionConfirm(task)}
                         >
-                          Confirm
+                          Подтвердить
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
@@ -221,7 +221,7 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    View
+                    Посмотреть
                   </Link>
                 </Button>
             </div>

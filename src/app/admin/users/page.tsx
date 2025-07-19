@@ -65,7 +65,7 @@ export default async function AdminUsersPage() {
       <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
         <div className="flex items-center gap-2 font-semibold">
           <UserRoundCheck className="h-6 w-6" />
-          <span>F/U - Admin</span>
+          <span>F/U - Админ</span>
         </div>
         <div className="ml-auto">
           <UserNav user={pageUser} />
@@ -76,9 +76,9 @@ export default async function AdminUsersPage() {
           <CardHeader>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <CardTitle>User Management</CardTitle>
+                <CardTitle>Управление пользователями</CardTitle>
                 <CardDescription>
-                  Manage user roles, daily assignment limits, and view activity.
+                  Управляйте ролями пользователей, дневными лимитами заданий и просматривайте активность.
                 </CardDescription>
               </div>
               <div className='flex flex-col sm:flex-row gap-2'>
@@ -94,13 +94,13 @@ export default async function AdminUsersPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Email</TableHead>
-                    <TableHead className="w-[180px]">Role</TableHead>
-                    <TableHead className="w-[150px]">Daily Limit</TableHead>
+                    <TableHead className="w-[180px]">Роль</TableHead>
+                    <TableHead className="w-[150px]">Дневной лимит</TableHead>
                     <TableHead className="w-[150px] text-center">
-                      Subscribed (Today)
+                      Подписки (сегодня)
                     </TableHead>
                     <TableHead className="w-[150px] text-center">
-                      Subscribed (Total)
+                      Подписки (всего)
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -111,7 +111,7 @@ export default async function AdminUsersPage() {
                         {u.email}
                         {u.id === user.id && (
                           <Badge variant="outline" className="ml-2">
-                            You
+                            Вы
                           </Badge>
                         )}
                       </TableCell>
@@ -170,7 +170,7 @@ export default async function AdminUsersPage() {
                     <div className="flex items-center justify-between">
                       <span className="font-medium truncate pr-2">{u.email}</span>
                       {u.id === user.id && (
-                        <Badge variant="outline">You</Badge>
+                        <Badge variant="outline">Вы</Badge>
                       )}
                     </div>
 
@@ -178,7 +178,7 @@ export default async function AdminUsersPage() {
 
                     <div className="flex items-center justify-between gap-4">
                       <span className="text-sm text-muted-foreground">
-                        Role
+                        Роль
                       </span>
                       <div className="w-1/2">
                         <UserRoleSelector
@@ -192,7 +192,7 @@ export default async function AdminUsersPage() {
                     {u.role === 'member' && (
                       <div className="flex items-center justify-between gap-4">
                         <span className="text-sm text-muted-foreground">
-                          Daily Limit
+                          Дневной лимит
                         </span>
                         <UserAssignmentInput
                           userId={u.id}
@@ -207,11 +207,11 @@ export default async function AdminUsersPage() {
                              <div className="flex items-center justify-between text-center text-sm">
                                 <div className='flex-1'>
                                     <p className="font-semibold">{u.subscribed_today_count}</p>
-                                    <p className="text-xs text-muted-foreground">Today</p>
+                                    <p className="text-xs text-muted-foreground">Сегодня</p>
                                 </div>
                                 <div className='flex-1'>
                                     <p className="font-semibold">{u.subscribed_total_count}</p>
-                                    <p className="text-xs text-muted-foreground">Total</p>
+                                    <p className="text-xs text-muted-foreground">Всего</p>
                                 </div>
                             </div>
                         </>

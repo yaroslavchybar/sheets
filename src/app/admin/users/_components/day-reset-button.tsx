@@ -29,13 +29,13 @@ export function DayResetButton() {
       if (error) {
         toast({
           variant: 'destructive',
-          title: 'Reset Failed',
+          title: 'Ошибка сброса',
           description: error.message,
         });
       } else {
         toast({
-          title: 'Day Reset Successful',
-          description: 'All pending tasks have been returned to the assignment pool.',
+          title: 'Сброс дня успешен',
+          description: 'Все ожидающие задачи возвращены в пул назначений.',
         });
       }
     });
@@ -46,20 +46,20 @@ export function DayResetButton() {
       <AlertDialogTrigger asChild>
         <Button variant="outline">
           <RefreshCcw className="mr-2" />
-          Trigger Day Reset
+          Сбросить день
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+          <AlertDialogTitle>Вы абсолютно уверены?</AlertDialogTitle>
           <AlertDialogDescription>
-            This action will immediately delete all pending (unsubscribed) tasks for all members. This cannot be undone. All cleared tasks will return to the assignment pool.
+            Это действие немедленно удалит все ожидающие (неподписанные) задачи для всех участников. Это действие нельзя отменить. Все очищенные задачи вернутся в пул назначений.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={isPending}>Отмена</AlertDialogCancel>
           <AlertDialogAction onClick={handleReset} disabled={isPending}>
-            {isPending ? 'Resetting...' : 'Yes, reset the day'}
+            {isPending ? 'Сброс...' : 'Да, сбросить день'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

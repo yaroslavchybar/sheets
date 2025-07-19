@@ -34,13 +34,13 @@ export function UserRoleSelector({
       if (error) {
         toast({
           variant: 'destructive',
-          title: 'Update Failed',
+          title: 'Ошибка обновления',
           description: error.message,
         });
       } else {
         toast({
-          title: 'Role Updated',
-          description: `User role has been successfully changed to ${newRole}.`,
+          title: 'Роль обновлена',
+          description: `Роль пользователя успешно изменена на ${newRole}.`,
         });
       }
     });
@@ -53,11 +53,11 @@ export function UserRoleSelector({
       disabled={isCurrentUser || isPending}
     >
       <SelectTrigger className="w-full">
-        <SelectValue placeholder="Select role" />
+        <SelectValue placeholder="Выберите роль" />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="admin">Admin</SelectItem>
-        <SelectItem value="member">Member</SelectItem>
+        <SelectItem value="admin">Админ</SelectItem>
+        <SelectItem value="member">Участник</SelectItem>
       </SelectContent>
     </Select>
   );

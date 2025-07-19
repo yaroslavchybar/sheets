@@ -60,13 +60,13 @@ export function UserNav({ user }: UserNavProps) {
         <DropdownMenuGroup>
           <DropdownMenuItem disabled>
             <UserIcon className="mr-2 h-4 w-4" />
-            <span>Profile</span>
+            <span>Профиль</span>
           </DropdownMenuItem>
           {user.role === 'admin' && (
              <Link href="/admin/users" passHref>
                 <DropdownMenuItem>
                     <Shield className="mr-2 h-4 w-4" />
-                    <span>User Management</span>
+                    <span>Управление</span>
                 </DropdownMenuItem>
             </Link>
           )}
@@ -74,7 +74,7 @@ export function UserNav({ user }: UserNavProps) {
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>
           <LogOut className="mr-2 h-4 w-4" />
-          <span>Log out</span>
+          <span>Выйти</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
