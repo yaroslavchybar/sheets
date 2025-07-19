@@ -56,7 +56,8 @@ export async function getDailyTasksForMember(
 
   // 3. If the user needs more tasks to meet their current limit (either new or increased)
   if (tasksToAssignCount > 0) {
-    // Get all accounts that have been assigned to anyone TODAY to avoid duplicates.
+    // Get all accounts that have been assigned to anyone TODAY to avoid assigning them again.
+    // This is the source of truth for what's already been taken from the pool for today.
     const { data: allTodayAssignments, error: allTodayError } = await supabase
         .from('daily_assignments')
         .select('instagram_id')
@@ -64,9 +65,9 @@ export async function getDailyTasksForMember(
 
     if (allTodayError) {
         console.error("Error fetching today's assigned accounts:", allTodayError);
-        return [];
+        // We don't return here, as we can still proceed, but we log the error.
     }
-    const assignedTodayIds = new Set(allTodayAssignments.map((a) => a.instagram_id));
+    const assignedTodayIds = new Set((allTodayAssignments || []).map((a) => a.instagram_id));
     
     // Get available accounts from the sheet and filter out any that have been assigned today.
     const allAccounts = await getAvailableAccounts();
