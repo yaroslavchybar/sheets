@@ -70,6 +70,9 @@ export async function getDailyTasksForMember(
     // Get available accounts from the sheet and filter out assigned ones
     const allAccounts = await getAvailableAccounts();
     if (allAccounts && allAccounts.length > 0) {
+        // Sort accounts for consistent assignment order to reduce race conditions
+        allAccounts.sort((a, b) => a.id.localeCompare(b.id));
+
         const unassignedAccounts = allAccounts.filter((acc) => !assignedTodayIds.has(acc.id));
         const newTasksToAssign = unassignedAccounts.slice(0, tasksToAssignCount);
 
@@ -83,7 +86,11 @@ export async function getDailyTasksForMember(
 
           const { error: insertError } = await supabase
             .from('daily_assignments')
-            .insert(newAssignmentRecords);
+            .insert(newAssignmentRecords, {
+              // This is the key fix: if a duplicate is inserted (due to a race condition), ignore it.
+              // This requires the 'unique_instagram_id_assignment_date' constraint to be set on the table.
+              onConflict: 'instagram_id, assignment_date',
+            });
 
           if (insertError) {
             console.error('Error saving new assignments:', insertError);
