@@ -1,3 +1,4 @@
+
 'use server';
 
 import { google } from 'googleapis';
@@ -47,13 +48,15 @@ export async function getAvailableAccounts(): Promise<Omit<InstagramAccount, 'is
     }
     
     // Map rows to InstagramAccount objects
-    const accounts = rows.map((row, index) => ({
-      rowNumber: index + 2, // Sheet rows are 1-based, and we start from A2
-      id: row[0] || '', // Column A: ID
-      userName: row[1] || '', // Column B: userName
-      fullName: row[2] || '', // Column C: fullName
-      profileUrl: row[3] || '', // Column D: profileUrl
-    }));
+    const accounts = rows
+      .map((row, index) => ({
+        rowNumber: index + 2, // Sheet rows are 1-based, and we start from A2
+        id: row[0] || '', // Column A: ID
+        userName: row[1] || '', // Column B: userName
+        fullName: row[2] || '', // Column C: fullName
+        profileUrl: row[3] || '', // Column D: profileUrl
+      }))
+      .filter(account => account.id && account.id.trim() !== ''); // Filter out rows with no ID
     
     return accounts;
   } catch (err) {
