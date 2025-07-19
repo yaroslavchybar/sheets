@@ -307,6 +307,7 @@ export async function createUser(
 
 export async function triggerDayReset() {
   const supabase = createServerClient();
+  const today = new Date().toISOString().split('T')[0];
 
   // 1. Check if the current user is an admin
   const { data: { user: currentUser } } = await supabase.auth.getUser();
@@ -322,14 +323,14 @@ export async function triggerDayReset() {
     return { error: { message: 'You do not have permission to reset the day.' } };
   }
 
-  // 2. Delete all assignments that have not been completed
+  // 2. Delete all of today's assignments, regardless of their status.
   const { error: deleteError } = await supabase
     .from('daily_assignments')
     .delete()
-    .eq('is_subscribed', false);
+    .eq('assignment_date', today);
 
   if (deleteError) {
-    return { error: { message: `Failed to clear pending tasks: ${deleteError.message}` } };
+    return { error: { message: `Failed to clear tasks for today: ${deleteError.message}` } };
   }
 
   // 3. Revalidate paths to update UI for all users
