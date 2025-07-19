@@ -175,6 +175,7 @@ export async function updateUserAssignmentLimit(
 ) {
   const supabase = createServerClient();
   const today = new Date().toISOString().split('T')[0];
+  const todayStart = new Date(today).toISOString();
 
   // Check if the current user is an admin before proceeding
   const {
@@ -197,51 +198,66 @@ export async function updateUserAssignmentLimit(
     };
   }
 
-  // If the limit is being reduced, remove excess assignments for today
-  const { data: currentAssignments, error: fetchError } = await supabase
+  // Fetch count of PENDING assignments for today
+  const { count: pendingCount, error: pendingError } = await supabase
     .from('daily_assignments')
-    .select('id', { count: 'exact' })
+    .select('*', { count: 'exact', head: true })
     .eq('user_id', userId)
     .eq('assignment_date', today);
 
-  if (fetchError) {
-    return { error: { message: 'Could not check current assignments.' } };
+  if (pendingError) {
+    return { error: { message: 'Could not check pending assignments.' } };
   }
 
-  const currentCount = currentAssignments?.length || 0;
+  // Fetch count of SUBSCRIBED assignments for today
+  const { count: subscribedTodayCount, error: subscribedError } = await supabase
+    .from('subscriptions')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .gte('subscribed_at', todayStart);
 
-  if (newLimit < currentCount) {
-    const assignmentsToRemove = currentCount - newLimit;
+  if (subscribedError) {
+    return { error: { message: 'Could not check today\'s subscriptions.' } };
+  }
 
-    // Get the IDs of the most recent assignments to remove
-    const { data: assignmentsToDelete, error: selectError } = await supabase
-      .from('daily_assignments')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('assignment_date', today)
-      .order('created_at', { ascending: false })
-      .limit(assignmentsToRemove);
+  const totalGeneratedToday = (pendingCount ?? 0) + (subscribedTodayCount ?? 0);
 
-    if (selectError) {
-      return {
-        error: { message: 'Could not retrieve assignments to delete.' },
-      };
-    }
+  // If the new limit is less than the total tasks already generated, remove excess pending tasks
+  if (newLimit < totalGeneratedToday) {
+    const assignmentsToRemove = totalGeneratedToday - newLimit;
 
-    if (assignmentsToDelete && assignmentsToDelete.length > 0) {
-      const idsToDelete = assignmentsToDelete.map((a) => a.id);
-      const { error: deleteError } = await supabase
+    // We can only remove from the pending tasks, not the subscribed ones
+    if (assignmentsToRemove > 0 && (pendingCount ?? 0) > 0) {
+      const { data: assignmentsToDelete, error: selectError } = await supabase
         .from('daily_assignments')
-        .delete()
-        .in('id', idsToDelete);
+        .select('id')
+        .eq('user_id', userId)
+        .eq('assignment_date', today)
+        .order('created_at', { ascending: false }) // Remove the most recently added ones first
+        .limit(assignmentsToRemove);
 
-      if (deleteError) {
-        return { error: { message: 'Failed to remove excess assignments.' } };
+      if (selectError) {
+        return {
+          error: { message: 'Could not retrieve assignments to delete.' },
+        };
+      }
+
+      if (assignmentsToDelete && assignmentsToDelete.length > 0) {
+        const idsToDelete = assignmentsToDelete.map((a) => a.id);
+        const { error: deleteError } = await supabase
+          .from('daily_assignments')
+          .delete()
+          .in('id', idsToDelete);
+
+        if (deleteError) {
+          return { error: { message: 'Failed to remove excess assignments.' } };
+        }
       }
     }
   }
 
-  // Update the limit for the specified user
+
+  // Finally, update the limit in the user's profile
   const { error: updateError } = await supabase
     .from('user_roles')
     .update({ daily_assignments_limit: newLimit })
@@ -255,6 +271,7 @@ export async function updateUserAssignmentLimit(
   revalidatePath('/'); // Revalidate the member dashboard
   return { error: null };
 }
+
 
 export async function createUser(
   email: string,
