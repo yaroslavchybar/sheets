@@ -90,6 +90,7 @@ export async function getDailyTasksForMember(
             .from('daily_assignments')
             .insert(newAssignmentRecords, {
               onConflict: 'instagram_id, assignment_date',
+              resolution: 'ignore', // This tells Supabase to ignore duplicates and not throw an error
             });
 
           if (insertError) {
@@ -144,4 +145,3 @@ export async function getDailyTasksForMember(
 
   return orderedTasks;
 }
-
