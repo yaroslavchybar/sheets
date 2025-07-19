@@ -87,11 +87,13 @@ export async function getDailyTasksForMember(
             assignment_date: today,
           }));
 
+          // Use upsert with ignoreDuplicates to safely handle race conditions
           const { error: insertError } = await supabase
             .from('daily_assignments')
-            .insert(newAssignmentRecords)
-            .onConflict('instagram_id, assignment_date')
-            .ignore();
+            .upsert(newAssignmentRecords, {
+              onConflict: 'instagram_id,assignment_date', // The constraint name or columns
+              ignoreDuplicates: true, // This is the key: it performs an INSERT...ON CONFLICT...DO NOTHING
+            });
 
           if (insertError) {
             console.error('Error saving new assignments:', insertError);
