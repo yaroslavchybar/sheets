@@ -89,10 +89,9 @@ export async function getDailyTasksForMember(
 
           const { error: insertError } = await supabase
             .from('daily_assignments')
-            .insert(newAssignmentRecords, {
-              onConflict: 'instagram_id, assignment_date',
-              resolution: 'ignore', // This tells Supabase to ignore duplicates and not throw an error
-            });
+            .insert(newAssignmentRecords)
+            .onConflict('instagram_id, assignment_date')
+            .ignore();
 
           if (insertError) {
             console.error('Error saving new assignments:', insertError);
