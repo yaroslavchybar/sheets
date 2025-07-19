@@ -12,14 +12,13 @@ export async function getDailyTasksForMember(
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
   // --- Daily Cleanup ---
-  // Delete any of this user's incomplete tasks from previous days.
-  // This returns them to the general assignment pool.
+  // Delete any of this user's incomplete tasks from any day that is NOT today.
   await supabase
     .from('daily_assignments')
     .delete()
     .eq('user_id', userId)
     .eq('is_subscribed', false)
-    .lt('assignment_date', today);
+    .neq('assignment_date', today);
   
   // 1. Get the user's current assignment limit first. This is crucial.
   const { data: userRole, error: userRoleError } = await supabase
@@ -36,6 +35,8 @@ export async function getDailyTasksForMember(
 
   // If limit is 0, they should have no tasks.
   if (assignmentLimit === 0) {
+      // Also clean up any existing tasks for today if their limit was just set to 0
+      await supabase.from('daily_assignments').delete().eq('user_id', userId).eq('assignment_date', today);
       return [];
   }
 
@@ -55,26 +56,27 @@ export async function getDailyTasksForMember(
 
   // 3. If the user needs more tasks to meet their current limit (either new or increased)
   if (tasksToAssignCount > 0) {
-    // Get all accounts assigned to *any* user today to ensure no duplicates
-    const { data: allTodayAssignments, error: allTodayError } = await supabase
-      .from('daily_assignments')
-      .select('instagram_id')
-      .eq('assignment_date', today);
-      
-    if (allTodayError) {
-      console.error("Error fetching all of today's assignments:", allTodayError);
-      return [];
-    }
-    const assignedTodayIds = new Set(allTodayAssignments.map((a) => a.instagram_id));
+    // Get all accounts that have ever been assigned to anyone, on any date.
+    const { data: allEverAssigned, error: allEverError } = await supabase
+        .from('daily_assignments')
+        .select('instagram_id');
 
-    // Get available accounts from the sheet and filter out assigned ones
+    if (allEverError) {
+        console.error("Error fetching all ever assigned accounts:", allEverError);
+        return [];
+    }
+    const everAssignedIds = new Set(allEverAssigned.map((a) => a.instagram_id));
+    
+    // Get available accounts from the sheet and filter out any that have ever been assigned.
     const allAccounts = await getAvailableAccounts();
     if (allAccounts && allAccounts.length > 0) {
-        // Sort accounts for consistent assignment order to reduce race conditions
-        allAccounts.sort((a, b) => a.id.localeCompare(b.id));
+        // Filter out any account that has an entry in our assignments table.
+        const trulyUnassignedAccounts = allAccounts.filter((acc) => !everAssignedIds.has(acc.id));
+        
+        // Sort for consistent assignment order to reduce race conditions
+        trulyUnassignedAccounts.sort((a, b) => a.id.localeCompare(b.id));
 
-        const unassignedAccounts = allAccounts.filter((acc) => !assignedTodayIds.has(acc.id));
-        const newTasksToAssign = unassignedAccounts.slice(0, tasksToAssignCount);
+        const newTasksToAssign = trulyUnassignedAccounts.slice(0, tasksToAssignCount);
 
         // Insert new assignments into the database
         if (newTasksToAssign.length > 0) {
