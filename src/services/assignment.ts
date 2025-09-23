@@ -113,16 +113,17 @@ export async function triggerAssignment() {
   // 3. If the user needs more tasks, fetch available accounts and assign them
   if (tasksToAssignCount > 0) {
     
-    // Get a list of accounts that the current user has ever been assigned. We don't want to re-assign them.
+    // Get a list of accounts that the current user has ever subscribed to. We don't want to re-assign them.
     const { data: userHistory, error: historyError } = await supabase
-      .from('subscriptions')
-      .select('instagram_id')
-      .eq('user_id', userId);
+      .from('instagram_accounts')
+      .select('id')
+      .eq('assigned_to', userId)
+      .eq('status', 'subscribed');
       
     if (historyError) {
         return { error: { message: 'Ошибка при получении истории подписок.' } };
     }
-    const subscribedIds = new Set((userHistory || []).map(h => h.instagram_id));
+    const subscribedIds = new Set((userHistory || []).map(h => h.id));
 
     // Find accounts that are 'available' and have never been subscribed to by this user.
     const { data: eligibleAccounts, error: eligibleError } = await supabase
