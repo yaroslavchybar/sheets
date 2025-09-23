@@ -38,5 +38,20 @@ export default async function Home() {
   // Just fetch existing tasks. Assignment is now a manual process.
   const dailyTasks: InstagramAccount[] = await getDailyTasksForMember(appUser.id);
   
-  return <Dashboard user={appUser} tasks={dailyTasks} />;
+  // Fetch today's subscription count
+  const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+
+  const { count: subscribedTodayCount, error: countError } = await supabase
+    .from('subscriptions')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .gte('subscribed_at', todayStart);
+
+  if (countError) {
+    console.error("Error fetching today's subscription count:", countError);
+    // Don't block the page render, just won't show the count.
+  }
+
+  return <Dashboard user={appUser} tasks={dailyTasks} subscribedTodayCount={subscribedTodayCount ?? 0} />;
 }

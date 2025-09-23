@@ -16,9 +16,10 @@ import { UserNav } from '@/components/user-nav';
 interface DashboardProps {
   user: AppUser;
   tasks: InstagramAccount[];
+  subscribedTodayCount: number;
 }
 
-export default function Dashboard({ user, tasks }: DashboardProps) {
+export default function Dashboard({ user, tasks, subscribedTodayCount }: DashboardProps) {
   return (
     <div className="flex min-h-screen w-full flex-col">
       <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
@@ -33,10 +34,18 @@ export default function Dashboard({ user, tasks }: DashboardProps) {
       <main className="flex-1 p-4 md:p-6 lg:p-8">
         <Card>
           <CardHeader>
-            <CardTitle>Ежедневные аккаунты Instagram</CardTitle>
-            <CardDescription>
-              Ваш список аккаунтов для подписки на сегодня.
-            </CardDescription>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <CardTitle>Ежедневные аккаунты Instagram</CardTitle>
+                <CardDescription>
+                  Ваш список аккаунтов для подписки на сегодня.
+                </CardDescription>
+              </div>
+              <div className="text-sm font-medium text-muted-foreground sm:text-right">
+                <p>Подписок сегодня</p>
+                <p className="text-2xl font-bold text-foreground">{subscribedTodayCount}</p>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {user.role === 'member' ? (
