@@ -35,10 +35,8 @@ export default async function Home() {
     role: profile?.role as AppUser['role'] || 'member', // Assign role, default to 'member'
   }
 
-  let dailyTasks: InstagramAccount[] = [];
-  if (appUser.role === 'member') {
-    dailyTasks = await getDailyTasksForMember(appUser.id);
-  }
-
+  // Just fetch existing tasks. Assignment is now a manual process.
+  const dailyTasks: InstagramAccount[] = await getDailyTasksForMember(appUser.id);
+  
   return <Dashboard user={appUser} tasks={dailyTasks} />;
 }

@@ -30,6 +30,8 @@ import { markTaskAsSubscribed } from '@/services/tasks';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { useTransition } from 'react';
+import { triggerAssignment } from '@/services/assignment';
+import { Download } from 'lucide-react';
 
 interface SheetTableProps {
   tasks: InstagramAccount[];
@@ -39,6 +41,7 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
   const [tasks, setTasks] = React.useState<InstagramAccount[]>(initialTasks);
   const [isClient, setIsClient] = React.useState(false);
   const [isPending, startTransition] = useTransition();
+  const [isAssigning, startAssignmentTransition] = useTransition();
   const { toast } = useToast();
   const [currentUserId, setCurrentUserId] = React.useState<string | null>(null);
 
@@ -92,6 +95,19 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
     });
   };
 
+  const handleGetTasks = () => {
+    startAssignmentTransition(async () => {
+      const { error } = await triggerAssignment();
+      if (error) {
+        toast({
+            variant: 'destructive',
+            title: 'Ошибка назначения',
+            description: error.message,
+        });
+      }
+    });
+  }
+
   if (!isClient) {
     return (
       <div className="w-full rounded-md border p-4">
@@ -108,8 +124,12 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
   
   if (tasks.length === 0) {
     return (
-        <div className="p-4 text-center text-muted-foreground">
-          На сегодня нет назначенных задач.
+        <div className="p-4 text-center text-muted-foreground flex flex-col items-center gap-4">
+          <p>На сегодня нет назначенных задач.</p>
+          <Button onClick={handleGetTasks} disabled={isAssigning}>
+            <Download className="mr-2"/>
+            {isAssigning ? 'Загрузка...' : 'Получить новые задачи'}
+          </Button>
         </div>
       )
   }
