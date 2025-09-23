@@ -19,7 +19,7 @@ export async function getDailyTasksForMember(
   // Fetch all tasks that are assigned to the user for today and are not yet subscribed.
   const { data: assignedTasks, error } = await supabase
     .from('instagram_accounts')
-    .select('id, user_name, full_name, profile_url, status')
+    .select('id, user_name, full_name, status')
     .eq('assigned_to', userId)
     .eq('assignment_date', today)
     .eq('status', 'assigned')
@@ -35,7 +35,7 @@ export async function getDailyTasksForMember(
       id: task.id,
       userName: task.user_name,
       fullName: task.full_name ?? '',
-      profileUrl: task.profile_url ?? '',
+      profileUrl: `https://www.instagram.com/${task.user_name}`,
       status: 'assigned' // We know the status is 'assigned' from the query.
   }));
 
