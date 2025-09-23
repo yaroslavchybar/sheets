@@ -23,6 +23,7 @@ export async function markTaskAsSubscribed(
     .update({
       status: 'subscribed',
       subscribed_at: subscribedAt,
+      assigned_to: userId, // Ensure the user is stamped on subscription
     })
     .eq('id', instagramId)
     .eq('assigned_to', userId); // Ensure we only update a task assigned to this user.
@@ -33,5 +34,35 @@ export async function markTaskAsSubscribed(
 
   revalidatePath('/'); // Revalidate the member's dashboard
   revalidatePath('/admin/users'); // Revalidate admin stats
+  return { error: null };
+}
+
+
+/**
+ * Marks a task as skipped.
+ * @param userId The ID of the user skipping.
+ * @param instagramId The ID of the Instagram account being skipped.
+ */
+export async function markTaskAsSkipped(
+  userId: string,
+  instagramId: string,
+) {
+  const supabase = createClient();
+
+  const { error: updateError } = await supabase
+    .from('instagram_accounts')
+    .update({
+      status: 'skip',
+      assigned_to: userId, // Keep a record of who skipped it
+    })
+    .eq('id', instagramId)
+    .eq('assigned_to', userId);
+
+  if (updateError) {
+    return { error: { message: `Database error during update: ${updateError.message}` }};
+  }
+
+  revalidatePath('/');
+  revalidatePath('/admin/users');
   return { error: null };
 }

@@ -26,12 +26,12 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from './ui/skeleton';
-import { markTaskAsSubscribed } from '@/services/tasks';
+import { markTaskAsSubscribed, markTaskAsSkipped } from '@/services/tasks';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { useTransition } from 'react';
 import { triggerAssignment } from '@/services/assignment';
-import { Download } from 'lucide-react';
+import { Download, XCircle } from 'lucide-react';
 
 interface SheetTableProps {
   tasks: InstagramAccount[];
@@ -92,6 +92,30 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
         }
     });
   };
+
+  const handleSkipConfirm = (task: InstagramAccount) => {
+     if (!currentUserId) {
+        toast({
+            variant: 'destructive',
+            title: 'Ошибка',
+            description: 'Не удалось определить текущего пользователя. Пожалуйста, обновите страницу.',
+        });
+        return;
+    }
+
+    startTransition(async () => {
+        setTasks((prevTasks) => prevTasks.filter((t) => t.id !== task.id));
+        const { error } = await markTaskAsSkipped(currentUserId, task.id);
+        if (error) {
+            toast({
+                variant: 'destructive',
+                title: 'Ошибка пропуска',
+                description: error.message,
+            });
+            setTasks(initialTasks); // Revert on failure
+        }
+    });
+  }
 
   const handleGetTasks = () => {
     startAssignmentTransition(async () => {
@@ -191,6 +215,32 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
                         Посмотреть профиль
                       </Link>
                     </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="sm" className="text-muted-foreground">
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Пропустить
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Пропустить этот аккаунт?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Аккаунт{' '}
+                                <span className="font-semibold text-foreground">
+                                    {task.userName}
+                                </span>{' '}
+                                будет удален из вашего списка и больше не будет назначаться вам.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Отмена</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleSkipConfirm(task)}>
+                                Да, пропустить
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                 </TableCell>
               </TableRow>
             ))}
@@ -201,47 +251,77 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
       {/* Mobile Card View */}
       <div className="space-y-2 md:hidden">
           {tasks.map((task) => (
-            <div key={task.id} className="flex items-center gap-4 rounded-md border p-4">
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Checkbox
-                      id={`check-mobile-${task.id}`}
-                      aria-label={`Отметить аккаунт ${task.userName} как подписанный`}
-                      className="h-5 w-5"
-                      disabled={isPending}
-                    />
-                  </AlertDialogTrigger>
+            <div key={task.id} className="flex flex-col items-start gap-4 rounded-md border p-4">
+                <div className="flex w-full items-center gap-4">
+                    <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Checkbox
+                        id={`check-mobile-${task.id}`}
+                        aria-label={`Отметить аккаунт ${task.userName} как подписанный`}
+                        className="h-5 w-5"
+                        disabled={isPending}
+                        />
+                    </AlertDialogTrigger>
                     <AlertDialogContent>
-                      <AlertDialogHeader>
+                        <AlertDialogHeader>
                         <AlertDialogTitle>Подтвердить подписку</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Это отметит аккаунт{' '}
-                          <span className="font-semibold text-foreground">
+                            Это отметит аккаунт{' '}
+                            <span className="font-semibold text-foreground">
                             {task.userName}
-                          </span>{' '}
-                          как подписанный и удалит его из вашего списка. Это действие нельзя отменить из приложения.
+                            </span>{' '}
+                            как подписанный и удалит его из вашего списка. Это действие нельзя отменить из приложения.
                         </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
                         <AlertDialogCancel>Отмена</AlertDialogCancel>
                         <AlertDialogAction
-                          onClick={() => handleSubscriptionConfirm(task)}
+                            onClick={() => handleSubscriptionConfirm(task)}
                         >
-                          Подтвердить
+                            Подтвердить
                         </AlertDialogAction>
-                      </AlertDialogFooter>
+                        </AlertDialogFooter>
                     </AlertDialogContent>
-                </AlertDialog>
-                <span className="flex-1 font-medium truncate">{task.userName}</span>
-                <Button variant="link" size="sm" asChild>
-                  <Link
-                    href={task.profileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Посмотреть
-                  </Link>
-                </Button>
+                    </AlertDialog>
+                    <span className="flex-1 font-medium truncate">{task.userName}</span>
+                    <Button variant="link" size="sm" asChild>
+                    <Link
+                        href={task.profileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        Посмотреть
+                    </Link>
+                    </Button>
+                </div>
+                <div className="w-full pl-9">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="w-full">
+                           <XCircle className="h-4 w-4 mr-2" />
+                           Пропустить
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Пропустить этот аккаунт?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Аккаунт{' '}
+                                <span className="font-semibold text-foreground">
+                                    {task.userName}
+                                </span>{' '}
+                                будет удален из вашего списка и больше не будет назначаться вам.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Отмена</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleSkipConfirm(task)}>
+                                Да, пропустить
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                </div>
             </div>
           ))}
       </div>

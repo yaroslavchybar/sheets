@@ -37,7 +37,7 @@ export type InstagramAccount = {
   userName: string;
   fullName: string;
   profileUrl: string;
-  status: 'available' | 'assigned' | 'subscribed';
+  status: 'available' | 'assigned' | 'subscribed' | 'skip';
 };
 
 // Represents application settings
