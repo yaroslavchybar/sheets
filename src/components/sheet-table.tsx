@@ -73,14 +73,12 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
     startTransition(async () => {
         // Optimistically remove from UI
         setTasks((prevTasks) =>
-            prevTasks.filter((t) => t.assignmentId !== task.assignmentId)
+            prevTasks.filter((t) => t.id !== task.id)
         );
 
         const { error } = await markTaskAsSubscribed(
             currentUserId,
-            task.id,
-            task.assignmentId,
-            task.rowNumber,
+            task.id
         );
 
         if (error) {
@@ -149,12 +147,12 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
           </TableHeader>
           <TableBody>
             {tasks.map((task) => (
-              <TableRow key={task.assignmentId}>
+              <TableRow key={task.id}>
                 <TableCell>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Checkbox
-                        id={`check-${task.assignmentId}`}
+                        id={`check-${task.id}`}
                         aria-label={`Отметить аккаунт ${task.userName} как подписанный`}
                         disabled={isPending}
                       />
@@ -203,11 +201,11 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
       {/* Mobile Card View */}
       <div className="space-y-2 md:hidden">
           {tasks.map((task) => (
-            <div key={task.assignmentId} className="flex items-center gap-4 rounded-md border p-4">
+            <div key={task.id} className="flex items-center gap-4 rounded-md border p-4">
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Checkbox
-                      id={`check-mobile-${task.assignmentId}`}
+                      id={`check-mobile-${task.id}`}
                       aria-label={`Отметить аккаунт ${task.userName} как подписанный`}
                       className="h-5 w-5"
                       disabled={isPending}

@@ -2,13 +2,11 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { getAvailableAccounts } from './google-sheets';
 import type { InstagramAccount } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 
 /**
  * Fetches the currently assigned daily tasks for a specific member.
- * This function NO LONGER assigns new tasks automatically.
  * @param userId The ID of the user.
  * @returns A promise that resolves to an array of InstagramAccount tasks.
  */
@@ -18,44 +16,30 @@ export async function getDailyTasksForMember(
   const supabase = createClient();
   const today = new Date().toISOString().split('T')[0];
 
-  // Fetch the final list of assignments for the user for today
-  const { data: finalAssignments, error: finalError } = await supabase
-    .from('daily_assignments')
-    .select('id, instagram_id, created_at')
-    .eq('user_id', userId)
+  // Fetch all tasks that are assigned to the user for today and are not yet subscribed.
+  const { data: assignedTasks, error } = await supabase
+    .from('instagram_accounts')
+    .select('id, user_name, full_name, profile_url, status')
+    .eq('assigned_to', userId)
     .eq('assignment_date', today)
+    .eq('status', 'assigned')
     .order('created_at', { ascending: true });
 
-  if (finalError) {
-    console.error('Error fetching final assignments:', finalError);
+  if (error) {
+    console.error('Error fetching assigned tasks:', error);
     return [];
   }
 
-  if (!finalAssignments || finalAssignments.length === 0) {
-    return [];
-  }
+  // Map the database result to the InstagramAccount type.
+  const tasks: InstagramAccount[] = assignedTasks.map(task => ({
+      id: task.id,
+      userName: task.user_name,
+      fullName: task.full_name ?? '',
+      profileUrl: task.profile_url ?? '',
+      status: 'assigned' // We know the status is 'assigned' from the query.
+  }));
 
-  // Fetch details for the assigned accounts from the sheet
-  const allAccountsFromSheet = await getAvailableAccounts();
-  if (!allAccountsFromSheet || allAccountsFromSheet.length === 0) {
-    return [];
-  }
-  const idToAccountMap = new Map(allAccountsFromSheet.map((acc) => [acc.id, acc]));
-
-  // Combine db data with sheet data
-  const orderedTasks = finalAssignments
-    .map((assignment) => {
-      const accountDetails = idToAccountMap.get(assignment.instagram_id);
-      if (!accountDetails) return undefined;
-
-      return {
-        ...accountDetails,
-        assignmentId: assignment.id,
-      };
-    })
-    .filter((task): task is InstagramAccount => task !== undefined);
-
-  return orderedTasks;
+  return tasks;
 }
 
 /**
@@ -65,7 +49,6 @@ export async function getDailyTasksForMember(
 export async function triggerAssignment() {
   const supabase = createClient();
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-  const todayStart = new Date(today).toISOString();
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
@@ -73,11 +56,16 @@ export async function triggerAssignment() {
   }
   const userId = user.id;
 
-  // --- Daily Cleanup ---
+  // --- Daily Cleanup: Reset any of this user's tasks from previous days that are still 'assigned' ---
   await supabase
-    .from('daily_assignments')
-    .delete()
-    .eq('user_id', userId)
+    .from('instagram_accounts')
+    .update({ 
+        status: 'available',
+        assigned_to: null,
+        assignment_date: null
+    })
+    .eq('assigned_to', userId)
+    .eq('status', 'assigned')
     .neq('assignment_date', today);
 
   // 1. Get the user's assignment limit
@@ -93,88 +81,77 @@ export async function triggerAssignment() {
   }
   const assignmentLimit = userRole.daily_assignments_limit;
 
+  // If the user's limit is 0, make sure they have no assigned tasks for today.
   if (assignmentLimit === 0) {
-    await supabase.from('daily_assignments').delete().eq('user_id', userId).eq('assignment_date', today);
+    await supabase.from('instagram_accounts').update({
+        status: 'available',
+        assigned_to: null,
+        assignment_date: null
+    }).eq('assigned_to', userId).eq('assignment_date', today);
     revalidatePath('/');
     return { error: null };
   }
 
-  // 2. Check how many tasks are ALREADY completed or in the queue for this user today
-  const { count: pendingCount, error: pendingError } = await supabase
-    .from('daily_assignments')
+  // 2. Check how many tasks are ALREADY generated for this user today (assigned or subscribed)
+    const { count: generatedTodayCount, error: generatedTodayError } = await supabase
+    .from('instagram_accounts')
     .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
+    .eq('assigned_to', userId)
     .eq('assignment_date', today);
-  if (pendingError) {
-    return { error: { message: 'Ошибка при проверке ожидающих задач.' } };
-  }
 
-  const { count: subscribedTodayCount, error: subscribedError } = await supabase
-    .from('subscriptions')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .gte('subscribed_at', todayStart);
-  if (subscribedError) {
-    return { error: { message: 'Ошибка при проверке сегодняшних подписок.' } };
+  if (generatedTodayError) {
+    return { error: { message: 'Ошибка при проверке уже сгенерированных задач.' } };
   }
-
-  const totalGeneratedToday = (pendingCount ?? 0) + (subscribedTodayCount ?? 0);
   
-  if (totalGeneratedToday >= assignmentLimit) {
+  if (generatedTodayCount >= assignmentLimit) {
     revalidatePath('/');
     return { error: { message: 'Дневной лимит уже достигнут. Новые задачи не назначены.' } };
   }
   
-  const tasksToAssignCount = assignmentLimit - totalGeneratedToday;
+  const tasksToAssignCount = assignmentLimit - generatedTodayCount;
 
-  // 3. If the user needs more tasks, fetch and assign them
+  // 3. If the user needs more tasks, fetch available accounts and assign them
   if (tasksToAssignCount > 0) {
-    const { data: subscribedEver, error: subscribedEverError } = await supabase
+    
+    // Get a list of accounts that the current user has ever been assigned. We don't want to re-assign them.
+    const { data: userHistory, error: historyError } = await supabase
       .from('subscriptions')
       .select('instagram_id')
       .eq('user_id', userId);
-    if (subscribedEverError) {
-      return { error: { message: 'Ошибка при получении истории подписок.' } };
-    }
-    const subscribedIds = new Set((subscribedEver || []).map((s) => s.instagram_id));
-
-    const { data: assignedToday, error: assignedTodayError } = await supabase
-        .from('daily_assignments')
-        .select('instagram_id')
-        .eq('assignment_date', today);
-    if (assignedTodayError) {
-        return { error: { message: 'Ошибка при проверке уже назначенных аккаунтов.' } };
-    }
-    const assignedTodayIds = new Set((assignedToday || []).map(a => a.instagram_id));
-
-    const allAccounts = await getAvailableAccounts();
-    if (allAccounts && allAccounts.length > 0) {
-      const eligibleAccounts = allAccounts.filter(
-        (acc) => !subscribedIds.has(acc.id) && !assignedTodayIds.has(acc.id)
-      );
       
-      eligibleAccounts.sort((a, b) => a.rowNumber - b.rowNumber);
+    if (historyError) {
+        return { error: { message: 'Ошибка при получении истории подписок.' } };
+    }
+    const subscribedIds = new Set((userHistory || []).map(h => h.instagram_id));
 
-      const newTasksToAssign = eligibleAccounts.slice(0, tasksToAssignCount);
+    // Find accounts that are 'available' and have never been subscribed to by this user.
+    const { data: eligibleAccounts, error: eligibleError } = await supabase
+        .from('instagram_accounts')
+        .select('id')
+        .eq('status', 'available')
+        .not('id', 'in', `(${Array.from(subscribedIds).map(id => `'${id}'`).join(',')})`)
+        .limit(tasksToAssignCount);
 
-      if (newTasksToAssign.length > 0) {
-        const newAssignmentRecords = newTasksToAssign.map((task) => ({
-          user_id: userId,
-          instagram_id: task.id,
-          assignment_date: today,
-        }));
-        
-        const { error: insertError } = await supabase
-          .from('daily_assignments')
-          .upsert(newAssignmentRecords, { 
-            onConflict: 'instagram_id, assignment_date',
-            ignoreDuplicates: true 
-        });
+    if (eligibleError && !eligibleError.message.includes('contained no rows')) {
+        return { error: { message: 'Ошибка при поиске доступных аккаунтов.' }};
+    }
+    
+    if (eligibleAccounts && eligibleAccounts.length > 0) {
+        const accountIdsToAssign = eligibleAccounts.map(acc => acc.id);
 
-        if (insertError) {
-            return { error: { message: `Ошибка сохранения назначений: ${insertError.message}` } };
+        // Assign the accounts to the user
+        const { error: updateError } = await supabase
+            .from('instagram_accounts')
+            .update({
+                status: 'assigned',
+                assigned_to: userId,
+                assignment_date: today
+            })
+            .in('id', accountIdsToAssign);
+
+        if (updateError) {
+            return { error: { message: `Ошибка при назначении задач: ${updateError.message}` } };
         }
-      }
     }
   }
 

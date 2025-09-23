@@ -31,14 +31,13 @@ export type AppUser = {
   role?: UserRole;
 };
 
-// Represents an Instagram account from the Google Sheet
+// Represents an Instagram account from the database
 export type InstagramAccount = {
-  rowNumber: number;
-  assignmentId: number; // The ID from the daily_assignments table
   id: string;
   userName: string;
   fullName: string;
   profileUrl: string;
+  status: 'available' | 'assigned' | 'subscribed';
 };
 
 // Represents application settings
@@ -48,7 +47,7 @@ export type AppSettings = {
 
 // Represents a user with their role and settings for the admin page
 export type UserWithRole = {
-  id: string;
+  id:string;
   email: string;
   role: UserRole;
   daily_assignments_limit: number;

@@ -175,7 +175,6 @@ export async function updateUserAssignmentLimit(
 ) {
   const supabase = createServerClient();
   const today = new Date().toISOString().split('T')[0];
-  const todayStart = new Date(today).toISOString();
 
   // Check if the current user is an admin before proceeding
   const {
@@ -198,64 +197,72 @@ export async function updateUserAssignmentLimit(
     };
   }
 
-  // Fetch count of PENDING assignments for today
+  // Count of tasks currently assigned to the user for today (pending)
   const { count: pendingCount, error: pendingError } = await supabase
-    .from('daily_assignments')
+    .from('instagram_accounts')
     .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .eq('assignment_date', today);
+    .eq('assigned_to', userId)
+    .eq('assignment_date', today)
+    .eq('status', 'assigned');
 
   if (pendingError) {
     return { error: { message: 'Could not check pending assignments.' } };
   }
-
-  // Fetch count of SUBSCRIBED assignments for today
+  
+  // Count of tasks user has already subscribed to today
   const { count: subscribedTodayCount, error: subscribedError } = await supabase
-    .from('subscriptions')
+    .from('instagram_accounts')
     .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .gte('subscribed_at', todayStart);
+    .eq('assigned_to', userId)
+    .eq('status', 'subscribed')
+    .gte('subscribed_at', `${today}T00:00:00.000Z`);
 
   if (subscribedError) {
     return { error: { message: 'Could not check today\'s subscriptions.' } };
   }
-
+  
   const totalGeneratedToday = (pendingCount ?? 0) + (subscribedTodayCount ?? 0);
 
-  // If the new limit is less than the total tasks already generated, remove excess pending tasks
+  // If the new limit is less than what's already been generated, we need to un-assign some tasks
   if (newLimit < totalGeneratedToday) {
     const assignmentsToRemove = totalGeneratedToday - newLimit;
 
-    // We can only remove from the pending tasks, not the subscribed ones
+    // We can only remove from PENDING tasks
     if (assignmentsToRemove > 0 && (pendingCount ?? 0) > 0) {
-      const { data: assignmentsToDelete, error: selectError } = await supabase
-        .from('daily_assignments')
+      
+      // Get the IDs of the most recently assigned tasks to un-assign
+      const { data: assignmentsToUpdate, error: selectError } = await supabase
+        .from('instagram_accounts')
         .select('id')
-        .eq('user_id', userId)
+        .eq('assigned_to', userId)
         .eq('assignment_date', today)
-        .order('created_at', { ascending: false }) // Remove the most recently added ones first
+        .eq('status', 'assigned')
+        .order('created_at', { ascending: false })
         .limit(assignmentsToRemove);
 
       if (selectError) {
         return {
-          error: { message: 'Could not retrieve assignments to delete.' },
+          error: { message: 'Could not retrieve assignments to remove.' },
         };
       }
+      
+      if (assignmentsToUpdate && assignmentsToUpdate.length > 0) {
+        const idsToUpdate = assignmentsToUpdate.map((a) => a.id);
+        const { error: updateError } = await supabase
+          .from('instagram_accounts')
+          .update({ 
+            status: 'available',
+            assigned_to: null,
+            assignment_date: null
+          })
+          .in('id', idsToUpdate);
 
-      if (assignmentsToDelete && assignmentsToDelete.length > 0) {
-        const idsToDelete = assignmentsToDelete.map((a) => a.id);
-        const { error: deleteError } = await supabase
-          .from('daily_assignments')
-          .delete()
-          .in('id', idsToDelete);
-
-        if (deleteError) {
+        if (updateError) {
           return { error: { message: 'Failed to remove excess assignments.' } };
         }
       }
     }
   }
-
 
   // Finally, update the limit in the user's profile
   const { error: updateError } = await supabase
