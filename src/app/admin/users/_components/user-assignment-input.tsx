@@ -22,7 +22,7 @@ const formSchema = z.object({
     .number()
     .int()
     .min(0, { message: 'Должно быть 0 или больше.' })
-    .max(100, { message: 'Не может превышать 100.' }),
+    .max(1000, { message: 'Не может превышать 1000.' }),
 });
 
 type UserAssignmentInputProps = {
