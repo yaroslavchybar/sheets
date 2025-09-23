@@ -18,7 +18,7 @@ export default async function Home() {
   // Fetch the user's role from the user_roles table
   const { data: profile } = await supabase
     .from('user_roles')
-    .select('role')
+    .select('role, subscribed_today')
     .eq('user_id', user.id)
     .single();
 
@@ -38,20 +38,8 @@ export default async function Home() {
   // Just fetch existing tasks. Assignment is now a manual process.
   const dailyTasks: InstagramAccount[] = await getDailyTasksForMember(appUser.id);
   
-  // Fetch today's subscription count
-  const today = new Date();
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+  // Fetch today's subscription count directly from the user_roles table
+  const subscribedTodayCount = profile?.subscribed_today ?? 0;
 
-  const { count: subscribedTodayCount, error: countError } = await supabase
-    .from('subscriptions')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-    .gte('subscribed_at', todayStart);
-
-  if (countError) {
-    console.error("Error fetching today's subscription count:", countError);
-    // Don't block the page render, just won't show the count.
-  }
-
-  return <Dashboard user={appUser} tasks={dailyTasks} subscribedTodayCount={subscribedTodayCount ?? 0} />;
+  return <Dashboard user={appUser} tasks={dailyTasks} subscribedTodayCount={subscribedTodayCount} />;
 }

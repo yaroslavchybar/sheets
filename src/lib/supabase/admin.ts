@@ -23,13 +23,12 @@ async function getAdminSupabase() {
 
 export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
   const supabase = createServerClient();
-  const today = new Date();
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
-
+  
   // 1. Fetch all roles from our user_roles table. This is our source of truth for users.
+  // We can now directly get the counts from this table.
   const { data: rolesData, error: rolesError } = await supabase
     .from('user_roles')
-    .select('user_id, role, daily_assignments_limit');
+    .select('user_id, role, daily_assignments_limit, subscribed_today, subscribed_total');
 
   if (rolesError) {
     console.error('Error fetching roles:', rolesError);
@@ -58,40 +57,20 @@ export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
   // Filter auth users to only include those that exist in our user_roles table
   const existingAuthUsers = authData.users.filter(u => userIds.includes(u.id));
 
-  // 3. Helper function to get subscription counts from the instagram_accounts table
-  const getCounts = async (gteFilter?: string) => {
-    const counts = new Map<string, number>();
-    for (const userId of userIds) {
-        let query = supabase
-          .from('instagram_accounts')
-          .select('*', { count: 'exact', head: true })
-          .eq('assigned_to', userId)
-          .eq('status', 'subscribed');
-          
-        if (gteFilter) {
-            query = query.gte('subscribed_at', gteFilter);
-        }
-
-        const { count, error } = await query;
-        if (!error && count !== null) {
-            counts.set(userId, count);
-        }
-    }
-    return counts;
-  };
-
-  const subscribedTodayCountMap = await getCounts(todayStart);
-  const subscribedTotalCountMap = await getCounts();
-
   // Create helper map for roles
   const rolesMap = new Map(
     rolesData.map((r) => [
       r.user_id,
-      { role: r.role, daily_assignments_limit: r.daily_assignments_limit },
+      { 
+        role: r.role, 
+        daily_assignments_limit: r.daily_assignments_limit,
+        subscribed_today_count: r.subscribed_today,
+        subscribed_total_count: r.subscribed_total,
+      },
     ])
   );
 
-  // 4. Combine all data, using the existing auth users as the base
+  // 3. Combine all data, using the existing auth users as the base
   const usersWithRoles: UserWithRole[] = existingAuthUsers.map((user) => {
     const roleInfo = rolesMap.get(user.id);
     return {
@@ -99,8 +78,8 @@ export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
       email: user.email!,
       role: (roleInfo?.role as UserRole) || 'member', // Fallback, though should always exist
       daily_assignments_limit: roleInfo?.daily_assignments_limit ?? 10,
-      subscribed_today_count: subscribedTodayCountMap.get(user.id) || 0,
-      subscribed_total_count: subscribedTotalCountMap.get(user.id) || 0,
+      subscribed_today_count: roleInfo?.subscribed_today_count || 0,
+      subscribed_total_count: roleInfo?.subscribed_total_count || 0,
     };
   });
 
@@ -190,19 +169,20 @@ export async function updateUserAssignmentLimit(
     return { error: { message: 'Could not check pending assignments.' } };
   }
   
-  // Count of tasks user has already subscribed to today
-  const { count: subscribedTodayCount, error: subscribedError } = await supabase
-    .from('instagram_accounts')
-    .select('*', { count: 'exact', head: true })
-    .eq('assigned_to', userId)
-    .eq('status', 'subscribed')
-    .gte('subscribed_at', `${today}T00:00:00.000Z`);
-
-  if (subscribedError) {
-    return { error: { message: 'Could not check today\'s subscriptions.' } };
+  // Get today's subscribed count directly from the user_roles table
+  const { data: userRole, error: roleError } = await supabase
+    .from('user_roles')
+    .select('subscribed_today')
+    .eq('user_id', userId)
+    .single();
+  
+  if (roleError) {
+    return { error: { message: "Could not check today's subscription count." } };
   }
   
-  const totalGeneratedToday = (pendingCount ?? 0) + (subscribedTodayCount ?? 0);
+  const subscribedTodayCount = userRole?.subscribed_today ?? 0;
+  
+  const totalGeneratedToday = (pendingCount ?? 0) + subscribedTodayCount;
 
   // If the new limit is less than what's already been generated, we need to un-assign some tasks
   if (newLimit < totalGeneratedToday) {
