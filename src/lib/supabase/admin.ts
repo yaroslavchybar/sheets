@@ -327,38 +327,3 @@ export async function createUser(
   revalidatePath('/admin/users');
   return { error: null };
 }
-
-export async function triggerDayReset() {
-  const supabase = createServerClient();
-  const today = new Date().toISOString().split('T')[0];
-
-  // 1. Check if the current user is an admin
-  const { data: { user: currentUser } } = await supabase.auth.getUser();
-  if (!currentUser) {
-    return { error: { message: 'You must be logged in to perform this action.' } };
-  }
-  const { data: adminProfile, error: adminError } = await supabase
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', currentUser.id)
-    .single();
-  if (adminError || adminProfile?.role !== 'admin') {
-    return { error: { message: 'You do not have permission to reset the day.' } };
-  }
-
-  // 2. Delete all of today's assignments, regardless of their status.
-  const { error: deleteError } = await supabase
-    .from('daily_assignments')
-    .delete()
-    .eq('assignment_date', today);
-
-  if (deleteError) {
-    return { error: { message: `Failed to clear tasks for today: ${deleteError.message}` } };
-  }
-
-  // 3. Revalidate paths to update UI for all users
-  revalidatePath('/admin/users'); // For admin stats
-  revalidatePath('/'); // For member dashboards
-  
-  return { error: null };
-}
