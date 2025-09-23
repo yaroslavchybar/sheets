@@ -26,8 +26,7 @@ export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
   const today = new Date();
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
 
-
-  // 1. Fetch all roles from our user_roles table. This is our source of truth.
+  // 1. Fetch all roles from our user_roles table. This is our source of truth for users.
   const { data: rolesData, error: rolesError } = await supabase
     .from('user_roles')
     .select('user_id, role, daily_assignments_limit');
@@ -59,37 +58,20 @@ export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
   // Filter auth users to only include those that exist in our user_roles table
   const existingAuthUsers = authData.users.filter(u => userIds.includes(u.id));
 
-  // 3. Fetch subscribed counts for today for the existing users from the new table
-  const { data: subscribedTodayData, error: subscribedTodayError } =
-    await supabase
-      .from('subscriptions')
-      .select('user_id', { count: 'exact' })
-      .gte('subscribed_at', todayStart)
-      .in('user_id', userIds);
-
-  if (subscribedTodayError) {
-    console.error('Error fetching today subscribed counts:', subscribedTodayError);
-  }
-
-  // 4. Fetch total subscribed counts for the existing users from the new table
-  const { data: subscribedTotalData, error: subscribedTotalError } =
-    await supabase
-      .from('subscriptions')
-      .select('user_id', { count: 'exact' })
-      .in('user_id', userIds);
-
-  if (subscribedTotalError) {
-    console.error('Error fetching total subscribed counts:', subscribedTotalError);
-  }
-  
-  // Re-fetch counts using a different method if the first one failed or returned null
+  // 3. Helper function to get subscription counts from the instagram_accounts table
   const getCounts = async (gteFilter?: string) => {
     const counts = new Map<string, number>();
     for (const userId of userIds) {
-        let query = supabase.from('subscriptions').select('*', { count: 'exact', head: true }).eq('user_id', userId);
+        let query = supabase
+          .from('instagram_accounts')
+          .select('*', { count: 'exact', head: true })
+          .eq('assigned_to', userId)
+          .eq('status', 'subscribed');
+          
         if (gteFilter) {
             query = query.gte('subscribed_at', gteFilter);
         }
+
         const { count, error } = await query;
         if (!error && count !== null) {
             counts.set(userId, count);
@@ -101,7 +83,6 @@ export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
   const subscribedTodayCountMap = await getCounts(todayStart);
   const subscribedTotalCountMap = await getCounts();
 
-
   // Create helper map for roles
   const rolesMap = new Map(
     rolesData.map((r) => [
@@ -110,7 +91,7 @@ export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
     ])
   );
 
-  // 5. Combine all data, using the existing auth users as the base
+  // 4. Combine all data, using the existing auth users as the base
   const usersWithRoles: UserWithRole[] = existingAuthUsers.map((user) => {
     const roleInfo = rolesMap.get(user.id);
     return {
