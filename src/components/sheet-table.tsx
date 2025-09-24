@@ -294,10 +294,10 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
                     </Link>
                     </Button>
                 </div>
-                <div className="w-full pl-9">
+                <div className="w-full flex justify-center">
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="w-full">
+                        <Button variant="ghost" size="sm" className="text-muted-foreground">
                            <XCircle className="h-4 w-4 mr-2" />
                            Пропустить
                         </Button>
