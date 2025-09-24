@@ -2,6 +2,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import type { InstagramAccount } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 
@@ -13,10 +14,11 @@ import { revalidatePath } from 'next/cache';
 export async function getDailyTasksForMember(
   userId: string
 ): Promise<InstagramAccount[]> {
-  const supabase = createClient();
+  const supabase = createClient(); // Use the user's client to respect RLS
   const today = new Date().toISOString().split('T')[0];
 
   // Fetch all tasks that are assigned to the user for today and are not yet subscribed.
+  // This query is allowed by our RLS policy.
   const { data: assignedTasks, error } = await supabase
     .from('instagram_accounts')
     .select('id, user_name, full_name, status')
@@ -30,13 +32,12 @@ export async function getDailyTasksForMember(
     return [];
   }
 
-  // Map the database result to the InstagramAccount type.
   const tasks: InstagramAccount[] = assignedTasks.map(task => ({
       id: task.id,
       userName: task.user_name,
       fullName: task.full_name ?? '',
       profileUrl: `https://www.instagram.com/${task.user_name}`,
-      status: 'assigned' // We know the status is 'assigned' from the query.
+      status: 'assigned'
   }));
 
   return tasks;
@@ -44,20 +45,21 @@ export async function getDailyTasksForMember(
 
 /**
  * Triggers the assignment of daily tasks for the currently logged-in member.
- * It checks the user's limit, counts existing tasks, and assigns new ones if needed.
+ * This function uses the admin client to bypass RLS for finding and assigning tasks.
  */
 export async function triggerAssignment() {
-  const supabase = createClient();
-  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const userClient = createClient(); // Client for getting the current user
+  const adminClient = createAdminClient(); // Admin client for elevated privileges
+  const today = new Date().toISOString().split('T')[0];
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await userClient.auth.getUser();
   if (!user) {
     return { error: { message: 'Пользователь не найден.' } };
   }
   const userId = user.id;
 
-  // --- Daily Cleanup: Reset any of this user's tasks from previous days that are still 'assigned' ---
-  await supabase
+  // --- Daily Cleanup: Use admin client to reset old tasks ---
+  await adminClient
     .from('instagram_accounts')
     .update({ 
         status: 'available',
@@ -68,22 +70,20 @@ export async function triggerAssignment() {
     .eq('status', 'assigned')
     .neq('assignment_date', today);
 
-  // 1. Get the user's assignment limit
-  const { data: userRole, error: userRoleError } = await supabase
+  // 1. Get user's limit (using admin client to be safe)
+  const { data: userRole, error: userRoleError } = await adminClient
     .from('user_roles')
     .select('daily_assignments_limit')
     .eq('user_id', userId)
     .single();
 
   if (userRoleError || !userRole) {
-    console.error('Error fetching user assignment limit:', userRoleError);
     return { error: { message: 'Не удалось получить лимит назначений.' }};
   }
   const assignmentLimit = userRole.daily_assignments_limit;
 
-  // If the user's limit is 0, make sure they have no assigned tasks for today.
   if (assignmentLimit === 0) {
-    await supabase.from('instagram_accounts').update({
+    await adminClient.from('instagram_accounts').update({
         status: 'available',
         assigned_to: null,
         assignment_date: null
@@ -92,8 +92,8 @@ export async function triggerAssignment() {
     return { error: null };
   }
 
-  // 2. Check how many tasks are ALREADY generated for this user today (assigned or subscribed)
-    const { count: generatedTodayCount, error: generatedTodayError } = await supabase
+  // 2. Check existing tasks (using admin client)
+  const { count: generatedTodayCount, error: generatedTodayError } = await adminClient
     .from('instagram_accounts')
     .select('*', { count: 'exact', head: true })
     .eq('assigned_to', userId)
@@ -109,13 +109,11 @@ export async function triggerAssignment() {
   }
   
   const remainingTasks = assignmentLimit - generatedTodayCount;
-  const tasksToAssignCount = Math.min(10, remainingTasks); // Assign in batches of 10
+  const tasksToAssignCount = Math.min(10, remainingTasks);
 
-  // 3. If the user needs more tasks, fetch available accounts and assign them
+  // 3. Assign new tasks if needed (using admin client)
   if (tasksToAssignCount > 0) {
-    
-    // Get a list of accounts that the current user has ever subscribed to or skipped. We don't want to re-assign them.
-    const { data: userHistory, error: historyError } = await supabase
+    const { data: userHistory, error: historyError } = await adminClient
       .from('instagram_accounts')
       .select('id')
       .eq('assigned_to', userId)
@@ -126,8 +124,7 @@ export async function triggerAssignment() {
     }
     const subscribedIds = new Set((userHistory || []).map(h => h.id));
 
-    // Find accounts that are 'available' and have never been interacted with by this user.
-    let query = supabase
+    let query = adminClient
         .from('instagram_accounts')
         .select('id')
         .eq('status', 'available');
@@ -144,9 +141,7 @@ export async function triggerAssignment() {
     
     if (eligibleAccounts && eligibleAccounts.length > 0) {
         const accountIdsToAssign = eligibleAccounts.map(acc => acc.id);
-
-        // Assign the accounts to the user
-        const { error: updateError } = await supabase
+        const { error: updateError } = await adminClient
             .from('instagram_accounts')
             .update({
                 status: 'assigned',
@@ -164,4 +159,3 @@ export async function triggerAssignment() {
   revalidatePath('/');
   return { error: null };
 }
-
