@@ -108,32 +108,37 @@ export async function triggerAssignment() {
     return { error: { message: 'Дневной лимит уже достигнут. Новые задачи не назначены.' } };
   }
   
-  const tasksToAssignCount = assignmentLimit - generatedTodayCount;
+  const remainingTasks = assignmentLimit - generatedTodayCount;
+  const tasksToAssignCount = Math.min(10, remainingTasks); // Assign in batches of 10
 
   // 3. If the user needs more tasks, fetch available accounts and assign them
   if (tasksToAssignCount > 0) {
     
-    // Get a list of accounts that the current user has ever subscribed to. We don't want to re-assign them.
+    // Get a list of accounts that the current user has ever subscribed to or skipped. We don't want to re-assign them.
     const { data: userHistory, error: historyError } = await supabase
       .from('instagram_accounts')
       .select('id')
       .eq('assigned_to', userId)
-      .eq('status', 'subscribed');
+      .in('status', ['subscribed', 'skip']);
       
     if (historyError) {
         return { error: { message: 'Ошибка при получении истории подписок.' } };
     }
     const subscribedIds = new Set((userHistory || []).map(h => h.id));
 
-    // Find accounts that are 'available' and have never been subscribed to by this user.
-    const { data: eligibleAccounts, error: eligibleError } = await supabase
+    // Find accounts that are 'available' and have never been interacted with by this user.
+    let query = supabase
         .from('instagram_accounts')
         .select('id')
-        .eq('status', 'available')
-        .not('id', 'in', `(${Array.from(subscribedIds).map(id => `'${id}'`).join(',')})`)
-        .limit(tasksToAssignCount);
+        .eq('status', 'available');
 
-    if (eligibleError && !eligibleError.message.includes('contained no rows')) {
+    if (subscribedIds.size > 0) {
+      query = query.not('id', 'in', `(${Array.from(subscribedIds).join(',')})`);
+    }
+
+    const { data: eligibleAccounts, error: eligibleError } = await query.limit(tasksToAssignCount);
+
+    if (eligibleError) {
         return { error: { message: 'Ошибка при поиске доступных аккаунтов.' }};
     }
     
@@ -159,3 +164,4 @@ export async function triggerAssignment() {
   revalidatePath('/');
   return { error: null };
 }
+
