@@ -35,7 +35,7 @@ export default function Dashboard({ user, tasks, subscribedTodayCount }: Dashboa
         <Card>
           <CardHeader>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-              <div>
+              <div className="hidden sm:block">
                 <CardTitle>Ежедневные аккаунты Instagram</CardTitle>
                 <CardDescription>
                   Ваш список аккаунтов для подписки на сегодня.
