@@ -283,7 +283,7 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
                         </AlertDialogFooter>
                     </AlertDialogContent>
                     </AlertDialog>
-                    <span className="flex-1 font-medium truncate">{task.userName}</span>
+                    <span className="flex-1 font-medium truncate">{task.fullName || task.userName}</span>
                     <Button variant="link" size="sm" asChild>
                     <Link
                         href={task.profileUrl}
