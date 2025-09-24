@@ -2,7 +2,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient } from '@/lib/supabase/admin-client';
 import type { InstagramAccount } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 

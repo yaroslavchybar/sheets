@@ -2,25 +2,9 @@
 'use server';
 
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { createClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 import type { UserWithRole, UserRole } from '../types';
-
-// This function creates a Supabase client with admin privileges.
-// It uses the SERVICE_ROLE_KEY, which should be kept secret.
-// It is NOT exported because it's a synchronous helper in a 'use server' file.
-function createAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    }
-  );
-}
+import { createAdminClient } from './admin-client';
 
 export async function getAllUsersWithRoles(): Promise<UserWithRole[]> {
   const supabaseAdmin = createAdminClient();
