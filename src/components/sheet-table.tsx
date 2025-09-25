@@ -69,17 +69,14 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
         });
         return;
     }
+    
+    // Optimistically remove the task from the UI immediately.
+    const originalTasks = tasks;
+    setTasks((prevTasks) => prevTasks.filter((t) => t.id !== task.id));
 
+    // Perform the database update in the background.
     startTransition(async () => {
-        // Optimistically remove from UI
-        setTasks((prevTasks) =>
-            prevTasks.filter((t) => t.id !== task.id)
-        );
-
-        const { error } = await markTaskAsSubscribed(
-            currentUserId,
-            task.id
-        );
+        const { error } = await markTaskAsSubscribed(currentUserId, task.id);
 
         if (error) {
             toast({
@@ -87,8 +84,8 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
                 title: 'Ошибка обновления',
                 description: error.message,
             });
-            // Revert if the API call fails
-            setTasks(initialTasks);
+            // Revert the UI to the original state if the API call fails.
+            setTasks(originalTasks);
         }
     });
   };
@@ -102,9 +99,13 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
         });
         return;
     }
+    
+    // Optimistically remove the task from the UI immediately.
+    const originalTasks = tasks;
+    setTasks((prevTasks) => prevTasks.filter((t) => t.id !== task.id));
 
+    // Perform the database update in the background.
     startTransition(async () => {
-        setTasks((prevTasks) => prevTasks.filter((t) => t.id !== task.id));
         const { error } = await markTaskAsSkipped(currentUserId, task.id);
         if (error) {
             toast({
@@ -112,7 +113,8 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
                 title: 'Ошибка пропуска',
                 description: error.message,
             });
-            setTasks(initialTasks); // Revert on failure
+            // Revert the UI to the original state if the API call fails.
+            setTasks(originalTasks);
         }
     });
   }
