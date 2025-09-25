@@ -92,12 +92,13 @@ export async function triggerAssignment() {
     return { error: null };
   }
 
-  // 2. Check existing tasks (using admin client)
+  // 2. Check existing tasks, excluding 'skipped' ones (using admin client)
   const { count: generatedTodayCount, error: generatedTodayError } = await adminClient
     .from('instagram_accounts')
     .select('*', { count: 'exact', head: true })
     .eq('assigned_to', userId)
-    .eq('assignment_date', today);
+    .eq('assignment_date', today)
+    .in('status', ['assigned', 'subscribed']); // Only count pending or completed tasks
 
   if (generatedTodayError) {
     return { error: { message: 'Ошибка при проверке уже сгенерированных задач.' } };
