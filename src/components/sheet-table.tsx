@@ -157,6 +157,8 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
         </div>
       )
   }
+  
+  const tasksToShow = tasks.slice(0, 10);
 
   return (
     <div className="w-full">
@@ -172,7 +174,7 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {tasks.map((task) => (
+            {tasksToShow.map((task) => (
               <TableRow key={task.id}>
                 <TableCell>
                   <AlertDialog>
@@ -252,7 +254,7 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
       
       {/* Mobile Card View */}
       <div className="space-y-2 md:hidden">
-          {tasks.map((task) => (
+          {tasksToShow.map((task) => (
             <div key={task.id} className="flex flex-col items-start gap-4 rounded-md border p-4">
                 <div className="flex w-full items-center gap-4">
                     <AlertDialog>
