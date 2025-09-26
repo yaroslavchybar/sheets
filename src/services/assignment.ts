@@ -57,19 +57,7 @@ export async function triggerAssignment() {
     return { error: { message: 'Пользователь не найден.' } };
   }
   const userId = user.id;
-
-  // --- Daily Cleanup: Use admin client to reset old tasks ---
-  await adminClient
-    .from('instagram_accounts')
-    .update({ 
-        status: 'available',
-        assigned_to: null,
-        assignment_date: null
-    })
-    .eq('assigned_to', userId)
-    .eq('status', 'assigned')
-    .neq('assignment_date', today);
-
+  
   // 1. Get user's limit (using admin client to be safe)
   const { data: userRole, error: userRoleError } = await adminClient
     .from('user_roles')
@@ -113,28 +101,13 @@ export async function triggerAssignment() {
   const tasksToAssignCount = Math.min(10, remainingTasks);
 
   // 3. Assign new tasks if needed (using admin client)
+  // This simplified version finds any 'available' accounts without checking history.
   if (tasksToAssignCount > 0) {
-    const { data: userHistory, error: historyError } = await adminClient
-      .from('instagram_accounts')
-      .select('id')
-      .eq('assigned_to', userId)
-      .in('status', ['subscribed', 'skip']);
-      
-    if (historyError) {
-        return { error: { message: 'Ошибка при получении истории подписок.' } };
-    }
-    const subscribedIds = new Set((userHistory || []).map(h => h.id));
-
-    let query = adminClient
+    const { data: eligibleAccounts, error: eligibleError } = await adminClient
         .from('instagram_accounts')
         .select('id')
-        .eq('status', 'available');
-
-    if (subscribedIds.size > 0) {
-      query = query.not('id', 'in', `(${Array.from(subscribedIds).join(',')})`);
-    }
-
-    const { data: eligibleAccounts, error: eligibleError } = await query.limit(tasksToAssignCount);
+        .eq('status', 'available')
+        .limit(tasksToAssignCount);
 
     if (eligibleError) {
         return { error: { message: 'Ошибка при поиске доступных аккаунтов.' }};
@@ -160,3 +133,4 @@ export async function triggerAssignment() {
   revalidatePath('/');
   return { error: null };
 }
+
