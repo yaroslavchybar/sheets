@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -23,9 +22,11 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { setSessionToken } from '@/hooks/use-session';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Пожалуйста, введите действительный email.' }),
@@ -38,6 +39,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const signIn = useMutation(api.auth.signIn);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -49,25 +51,26 @@ export default function LoginPage() {
 
   async function handleSignIn(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({
-      email: values.email,
-      password: values.password,
-    });
-
-    if (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Ошибка аутентификации',
-        description: error.message,
+    try {
+      const result = await signIn({
+        email: values.email,
+        password: values.password,
       });
-    } else {
+
+      setSessionToken(result.token);
+
       toast({
         title: 'Вход выполнен',
         description: "Вы успешно вошли в систему.",
       });
       router.push('/');
       router.refresh();
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Ошибка аутентификации',
+        description: error.message || 'Произошла ошибка.',
+      });
     }
     setIsLoading(false);
   }

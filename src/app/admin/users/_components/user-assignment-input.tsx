@@ -13,9 +13,12 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { updateUserAssignmentLimit } from '@/lib/supabase/admin';
 import { useTransition } from 'react';
 import { Save } from 'lucide-react';
+import { useMutation } from 'convex/react';
+import { api } from '../../../../../convex/_generated/api';
+import { getSessionToken } from '@/hooks/use-session';
+import type { Id } from '../../../../../convex/_generated/dataModel';
 
 const formSchema = z.object({
   limit: z.coerce
@@ -36,6 +39,7 @@ export function UserAssignmentInput({
 }: UserAssignmentInputProps) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
+  const updateLimit = useMutation(api.users.updateUserAssignmentLimit);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -47,22 +51,28 @@ export function UserAssignmentInput({
   const { isDirty } = form.formState;
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    startTransition(async () => {
-      const { error } = await updateUserAssignmentLimit(userId, values.limit);
+    const token = getSessionToken();
+    if (!token) return;
 
-      if (error) {
+    startTransition(async () => {
+      try {
+        await updateLimit({
+          sessionToken: token,
+          userId: userId as Id<"users">,
+          newLimit: values.limit,
+        });
+        toast({
+          title: 'Лимит обновлен',
+          description: `Лимит назначений сохранен.`,
+        });
+        form.reset({ limit: values.limit });
+      } catch (error: any) {
         toast({
           variant: 'destructive',
           title: 'Ошибка обновления',
           description: error.message,
         });
-        form.reset({ limit: currentLimit }); // Reset on failure
-      } else {
-        toast({
-          title: 'Лимит обновлен',
-          description: `Лимит назначений сохранен.`,
-        });
-        form.reset({ limit: values.limit }); // Reset to new value to clear dirty state
+        form.reset({ limit: currentLimit });
       }
     });
   }

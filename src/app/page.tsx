@@ -1,45 +1,68 @@
-import { createClient } from '@/lib/supabase/server';
-import { redirect } from 'next/navigation';
+'use client';
+
 import Dashboard from '@/components/dashboard';
-import type { AppUser, InstagramAccount } from '@/lib/types';
-import { getDailyTasksForMember } from '@/services/assignment';
+import type { AppUser } from '@/lib/types';
+import { useSession, clearSessionToken } from '@/hooks/use-session';
+import { useQuery } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 
-export default async function Home() {
-  const supabase = createClient();
+export default function Home() {
+  const { user: session, isLoading, token } = useSession();
+  const router = useRouter();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const tasks = useQuery(
+    api.instagramAccounts.getDailyTasks,
+    token ? { sessionToken: token } : "skip"
+  );
 
-  if (!user) {
-    redirect('/login');
+  useEffect(() => {
+    if (!isLoading && !session) {
+      clearSessionToken();
+      router.push('/login');
+    }
+  }, [isLoading, session, router]);
+
+  useEffect(() => {
+    if (session?.role === 'admin') {
+      router.push('/admin/users');
+    }
+  }, [session, router]);
+
+  if (isLoading || !session || tasks === undefined) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="space-y-3 w-full max-w-2xl p-8">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      </div>
+    );
   }
 
-  // Fetch the user's role from the user_roles table
-  const { data: profile } = await supabase
-    .from('user_roles')
-    .select('role, subscribed_today')
-    .eq('user_id', user.id)
-    .single();
-
-  // If the user is an admin, redirect them to the user management page.
-  if (profile?.role === 'admin') {
-    redirect('/admin/users');
+  if (session.role === 'admin') {
+    return null; // Will redirect
   }
 
   const appUser: AppUser = {
-    id: user.id,
-    email: user.email!,
-    username: user.email!.split('@')[0],
-    photoUrl: user.user_metadata.avatar_url || `https://placehold.co/40x40/212529/F8F9FA/png?text=${user.email!.charAt(0).toUpperCase()}`,
-    role: profile?.role as AppUser['role'] || 'member', // Assign role, default to 'member'
-  }
+    id: session.id,
+    email: session.email,
+    username: session.email.split('@')[0],
+    photoUrl: `https://placehold.co/40x40/212529/F8F9FA/png?text=${session.email.charAt(0).toUpperCase()}`,
+    role: session.role as AppUser['role'],
+  };
 
-  // Just fetch existing tasks. Assignment is now a manual process.
-  const dailyTasks: InstagramAccount[] = await getDailyTasksForMember(appUser.id);
-  
-  // Fetch today's subscription count directly from the user_roles table
-  const subscribedTodayCount = profile?.subscribed_today ?? 0;
+  const dailyTasks = (tasks ?? []).map((t: any) => ({
+    id: t.id,
+    userName: t.userName,
+    fullName: t.fullName,
+    profileUrl: t.profileUrl,
+    status: t.status as 'assigned',
+  }));
 
-  return <Dashboard user={appUser} tasks={dailyTasks} subscribedTodayCount={subscribedTodayCount} />;
+  const sentTodayCount = session.sentToday ?? 0;
+
+  return <Dashboard user={appUser} tasks={dailyTasks} sentTodayCount={sentTodayCount} />;
 }

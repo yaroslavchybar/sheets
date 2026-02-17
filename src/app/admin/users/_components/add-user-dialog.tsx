@@ -32,9 +32,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { createUser } from '@/lib/supabase/admin';
 import { useState, useTransition } from 'react';
 import { UserPlus } from 'lucide-react';
+import { useMutation } from 'convex/react';
+import { api } from '../../../../../convex/_generated/api';
+import { getSessionToken } from '@/hooks/use-session';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Пожалуйста, введите действительный email.' }),
@@ -50,6 +52,7 @@ export function AddUserDialog() {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const [isOpen, setIsOpen] = useState(false);
+  const createUserMutation = useMutation(api.users.createUser);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -61,26 +64,29 @@ export function AddUserDialog() {
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    startTransition(async () => {
-      const { error } = await createUser(
-        values.email,
-        values.password,
-        values.role
-      );
+    const token = getSessionToken();
+    if (!token) return;
 
-      if (error) {
-        toast({
-          variant: 'destructive',
-          title: 'Ошибка создания',
-          description: error.message,
+    startTransition(async () => {
+      try {
+        await createUserMutation({
+          sessionToken: token,
+          email: values.email,
+          password: values.password,
+          role: values.role,
         });
-      } else {
         toast({
           title: 'Пользователь создан',
           description: `Пользователь ${values.email} успешно создан.`,
         });
         form.reset();
         setIsOpen(false);
+      } catch (error: any) {
+        toast({
+          variant: 'destructive',
+          title: 'Ошибка создания',
+          description: error.message,
+        });
       }
     });
   }

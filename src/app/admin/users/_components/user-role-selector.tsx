@@ -8,10 +8,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { updateUserRole } from '@/lib/supabase/admin';
 import { useToast } from '@/hooks/use-toast';
 import { useTransition } from 'react';
 import type { UserRole } from '@/lib/types';
+import { useMutation } from 'convex/react';
+import { api } from '../../../../../convex/_generated/api';
+import { getSessionToken } from '@/hooks/use-session';
+import type { Id } from '../../../../../convex/_generated/dataModel';
 
 type UserRoleSelectorProps = {
   userId: string;
@@ -26,21 +29,28 @@ export function UserRoleSelector({
 }: UserRoleSelectorProps) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
+  const updateRole = useMutation(api.users.updateUserRole);
 
   const handleRoleChange = (newRole: UserRole) => {
-    startTransition(async () => {
-      const { error } = await updateUserRole(userId, newRole);
+    const token = getSessionToken();
+    if (!token) return;
 
-      if (error) {
+    startTransition(async () => {
+      try {
+        await updateRole({
+          sessionToken: token,
+          userId: userId as Id<"users">,
+          role: newRole,
+        });
+        toast({
+          title: 'Роль обновлена',
+          description: `Роль пользователя успешно изменена на ${newRole}.`,
+        });
+      } catch (error: any) {
         toast({
           variant: 'destructive',
           title: 'Ошибка обновления',
           description: error.message,
-        });
-      } else {
-        toast({
-          title: 'Роль обновлена',
-          description: `Роль пользователя успешно изменена на ${newRole}.`,
         });
       }
     });

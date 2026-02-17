@@ -20,10 +20,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { LogOut, User as UserIcon, Shield, Moon, Sun, Laptop, Palette } from 'lucide-react';
 import type { AppUser } from '@/lib/types';
-import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
+import { useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { getSessionToken, clearSessionToken } from '@/hooks/use-session';
 
 type UserNavProps = {
   user: AppUser;
@@ -32,17 +34,26 @@ type UserNavProps = {
 export function UserNav({ user }: UserNavProps) {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
+  const signOut = useMutation(api.auth.signOut);
 
   const handleLogout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    const token = getSessionToken();
+    if (token) {
+      try {
+        await signOut({ token });
+      } catch (e) {
+        // Ignore errors during sign out
+      }
+    }
+    clearSessionToken();
+    router.push('/login');
     router.refresh();
   };
 
   if (!user) {
     return null;
   }
-  
+
   const displayName = user.username;
   const fallback = displayName?.charAt(0).toUpperCase();
 
@@ -72,14 +83,14 @@ export function UserNav({ user }: UserNavProps) {
             <span>Профиль</span>
           </DropdownMenuItem>
           {user.role === 'admin' && (
-             <Link href="/admin/users" passHref>
-                <DropdownMenuItem>
-                    <Shield className="mr-2 h-4 w-4" />
-                    <span>Управление</span>
-                </DropdownMenuItem>
+            <Link href="/admin/users" passHref>
+              <DropdownMenuItem>
+                <Shield className="mr-2 h-4 w-4" />
+                <span>Управление</span>
+              </DropdownMenuItem>
             </Link>
           )}
-           <DropdownMenuSub>
+          <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <Palette className="mr-2 h-4 w-4" />
               <span>Тема</span>

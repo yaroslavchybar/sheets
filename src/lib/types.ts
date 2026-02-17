@@ -37,7 +37,7 @@ export type InstagramAccount = {
   userName: string;
   fullName: string;
   profileUrl: string;
-  status: 'available' | 'assigned' | 'subscribed' | 'skip';
+  status: 'available' | 'assigned' | 'sent' | 'skip';
 };
 
 // Represents application settings
@@ -47,10 +47,10 @@ export type AppSettings = {
 
 // Represents a user with their role and settings for the admin page
 export type UserWithRole = {
-  id:string;
+  id: string;
   email: string;
   role: UserRole;
   daily_assignments_limit: number;
-  subscribed_today_count: number;
-  subscribed_total_count: number;
+  sent_today_count: number;
+  sent_total_count: number;
 }
