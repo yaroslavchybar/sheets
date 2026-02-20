@@ -45,4 +45,9 @@ export default defineSchema({
             "assignmentDate",
             "status",
         ]),
+
+    keywords: defineTable({
+        filename: v.string(),
+        content: v.string(),
+    }).index("by_filename", ["filename"]),
 });

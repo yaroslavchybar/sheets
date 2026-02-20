@@ -1,15 +1,15 @@
-import { readFileSync } from "fs";
-import { join } from "path";
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "../../convex/_generated/api";
 
 /**
  * Gender classification for Instagram accounts.
  * Ported from Python datauploader/filter_instagram.py
  */
 
-function loadKeywordsFromFile(filename: string): Set<string> {
+async function loadKeywordsFromDb(filename: string): Promise<Set<string>> {
     try {
-        const filePath = join(process.cwd(), "src", "lib", "keywords", filename);
-        const content = readFileSync(filePath, "utf-8");
+        const client = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+        const content = await client.query(api.keywords.get, { filename });
         const words = new Set<string>();
         for (const line of content.split("\n")) {
             const trimmed = line.trim();
@@ -18,39 +18,29 @@ function loadKeywordsFromFile(filename: string): Set<string> {
             }
         }
         return words;
-    } catch {
-        console.warn(`Warning: keyword file '${filename}' not found.`);
+    } catch (e) {
+        console.warn(`Warning: keyword file '${filename}' failed to load from DB.`, e);
         return new Set();
     }
 }
 
-// Lazy-loaded keyword sets
-let _maleNamesExceptions: Set<string> | null = null;
-let _femaleBusinessKeywords: Set<string> | null = null;
-let _femaleNames: Set<string> | null = null;
-
-function getMaleNamesExceptions(): Set<string> {
-    if (!_maleNamesExceptions) {
-        _maleNamesExceptions = loadKeywordsFromFile("males_names.txt");
-    }
-    return _maleNamesExceptions;
+export interface KeywordSets {
+    femaleBusinessKw: Set<string>;
+    maleExceptions: Set<string>;
+    femNames: Set<string>;
 }
 
-function getFemaleBusinessKeywords(): Set<string> {
-    if (!_femaleBusinessKeywords) {
-        _femaleBusinessKeywords = loadKeywordsFromFile("female_business_keywords.txt");
-    }
-    return _femaleBusinessKeywords;
-}
+export async function fetchAllKeywordSets(): Promise<KeywordSets> {
+    const [femaleBusinessKw, maleExceptions, ukrNames, rusNames] = await Promise.all([
+        loadKeywordsFromDb("female_business_keywords.txt"),
+        loadKeywordsFromDb("males_names.txt"),
+        loadKeywordsFromDb("ukrainian_female_names.txt"),
+        loadKeywordsFromDb("russian_female_names.txt"),
+    ]);
 
-function getFemaleNames(): Set<string> {
-    if (!_femaleNames) {
-        _femaleNames = new Set([
-            ...loadKeywordsFromFile("ukrainian_female_names.txt"),
-            ...loadKeywordsFromFile("russian_female_names.txt"),
-        ]);
-    }
-    return _femaleNames;
+    const femNames = new Set([...ukrNames, ...rusNames]);
+
+    return { femaleBusinessKw, maleExceptions, femNames };
 }
 
 const FEMALE_ENDINGS = ["a", "ya", "ia", "ina", "ova", "eva", "skaya", "ivna", "yivna", "ovna"];
@@ -73,7 +63,7 @@ function normalizeText(text: string): string {
  * Classify a profile using a multi-step priority system.
  * Returns 'female' for removal, or 'keep' to keep the profile.
  */
-export function classifyGender(username: string, fullname: string): "female" | "keep" {
+export function classifyGender(username: string, fullname: string, keywordSets: KeywordSets): "female" | "keep" {
     const combinedText = `${username} ${fullname}`.toLowerCase();
     if (!combinedText.trim()) return "keep";
 
@@ -81,17 +71,16 @@ export function classifyGender(username: string, fullname: string): "female" | "
     const cleanedText = normalizedText.replace(/[^a-zа-яёїієґ]+/g, " ");
     const parts = new Set(cleanedText.split(/\s+/).filter(Boolean));
 
-    const femaleBusinessKw = getFemaleBusinessKeywords();
+    const { femaleBusinessKw, maleExceptions, femNames } = keywordSets;
+
     for (const keyword of femaleBusinessKw) {
         if (parts.has(keyword)) return "female";
     }
 
-    const maleExceptions = getMaleNamesExceptions();
     for (const maleName of maleExceptions) {
         if (parts.has(maleName)) return "keep";
     }
 
-    const femNames = getFemaleNames();
     for (const femaleName of femNames) {
         if (parts.has(femaleName)) return "female";
     }
@@ -203,19 +192,21 @@ export interface FilterResult {
 /**
  * Filter rows by gender and extract accounts.
  */
-export function filterAndExtract(
+export async function filterAndExtract(
     rows: Record<string, string>[],
     keepFields: string[]
-): FilterResult {
+): Promise<FilterResult> {
     let removed = 0;
     const accounts: AccountEntry[] = [];
     const seen = new Set<string>();
+
+    const keywordSets = await fetchAllKeywordSets();
 
     for (const row of rows) {
         const username = getField(row, USERNAME_ALIASES);
         const fullname = getField(row, FULLNAME_ALIASES);
 
-        if (classifyGender(username, fullname) === "female") {
+        if (classifyGender(username, fullname, keywordSets) === "female") {
             removed++;
             continue;
         }

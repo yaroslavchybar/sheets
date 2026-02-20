@@ -108,7 +108,7 @@ export function AdminSidebar() {
                         );
 
                         return isCollapsed ? (
-                            <Tooltip key={item.href} placement="right">
+                            <Tooltip key={item.href}>
                                 <TooltipTrigger asChild>
                                     {linkContent}
                                 </TooltipTrigger>
@@ -125,7 +125,7 @@ export function AdminSidebar() {
                 <div className={cn("mt-auto py-4 transition-all duration-300", isCollapsed ? "px-0 flex justify-center" : "px-2")}>
                     {pageUser && (
                         isCollapsed ? (
-                            <Tooltip placement="right">
+                            <Tooltip>
                                 <TooltipTrigger asChild>
                                     <div>
                                         <UserNav

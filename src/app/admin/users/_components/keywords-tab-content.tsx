@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { TagsInput } from '@/components/ui/tags-input';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, FileText, RefreshCw } from 'lucide-react';
-import { getKeywords, saveKeywords } from '../actions';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../../../convex/_generated/api';
 
 const FILES = [
     { id: 'female_business_keywords.txt', label: 'Female Business Keywords' },
@@ -22,31 +23,28 @@ export function KeywordsTabContent() {
     const [isLoading, setIsLoading] = useState(false);
     const [isPending, startTransition] = useTransition();
 
-    const loadFile = async (filename: string) => {
-        setIsLoading(true);
-        try {
-            const data = await getKeywords(filename);
-            setContent(data);
-        } catch (error) {
-            toast({ variant: 'destructive', title: 'Ошибка', description: 'Не удалось загрузить файл' });
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    const data = useQuery(api.keywords.get, selectedFile ? { filename: selectedFile } : "skip");
+    const saveToConvex = useMutation(api.keywords.save);
 
     useEffect(() => {
-        loadFile(selectedFile);
-    }, [selectedFile]);
+        if (data !== undefined) {
+            setContent(data);
+        }
+    }, [data, selectedFile]);
 
     const handleSave = () => {
-        startTransition(async () => {
-            const result = await saveKeywords(selectedFile, content);
-            if (result.success) {
+        if (!selectedFile) return;
+        setIsLoading(true);
+        saveToConvex({ filename: selectedFile, content })
+            .then(() => {
                 toast({ title: 'Сохранено', description: 'Файл успешно обновлен' });
-            } else {
-                toast({ variant: 'destructive', title: 'Ошибка', description: result.error || 'Не удалось сохранить файл' });
-            }
-        });
+            })
+            .catch((error) => {
+                toast({ variant: 'destructive', title: 'Ошибка', description: error.message || 'Не удалось сохранить файл' });
+            })
+            .finally(() => {
+                setIsLoading(false);
+            });
     };
 
     return (
@@ -93,8 +91,10 @@ export function KeywordsTabContent() {
                     <div className="flex justify-end gap-2">
                         <Button
                             variant="outline"
-                            onClick={() => loadFile(selectedFile)}
-                            disabled={isLoading || isPending}
+                            onClick={() => {
+                                if (data !== undefined) setContent(data);
+                            }}
+                            disabled={isLoading || isPending || data === undefined}
                         >
                             <RefreshCw className="mr-2 h-4 w-4" />
                             Сбросить

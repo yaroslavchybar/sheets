@@ -37,8 +37,7 @@ export async function POST(request: NextRequest) {
         if (action === "process") {
             const keepFieldsRaw = formData.get("keepFields") as string | null;
             const keepFields = keepFieldsRaw ? JSON.parse(keepFieldsRaw) as string[] : headers;
-
-            const result = filterAndExtract(rows, keepFields);
+            const result = await filterAndExtract(rows, keepFields);
             return NextResponse.json(result);
         }
 
