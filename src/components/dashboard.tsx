@@ -10,16 +10,27 @@ import {
 } from '@/components/ui/card';
 import { SheetTable } from '@/components/sheet-table';
 import { UserRoundCheck } from 'lucide-react';
-import type { AppUser, InstagramAccount } from '@/lib/types';
+import type { AppUser, InstagramAccount, SenderProfile } from '@/lib/types';
 import { UserNav } from '@/components/user-nav';
+import { ProfileSwitcher } from '@/components/profile-switcher';
 
 interface DashboardProps {
   user: AppUser;
   tasks: InstagramAccount[];
   sentTodayCount: number;
+  profiles: SenderProfile[];
+  activeProfileId?: string;
+  onSelectProfile: (id: string) => void;
 }
 
-export default function Dashboard({ user, tasks, sentTodayCount }: DashboardProps) {
+export default function Dashboard({
+  user,
+  tasks,
+  sentTodayCount,
+  profiles,
+  activeProfileId,
+  onSelectProfile
+}: DashboardProps) {
   return (
     <div className="flex min-h-screen w-full flex-col">
       <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
@@ -27,7 +38,14 @@ export default function Dashboard({ user, tasks, sentTodayCount }: DashboardProp
           <UserRoundCheck className="h-6 w-6" />
           <span>F/U</span>
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-4">
+          {user.role === 'member' && profiles && (
+            <ProfileSwitcher
+              profiles={profiles}
+              activeProfileId={activeProfileId}
+              onSelectProfile={onSelectProfile}
+            />
+          )}
           <UserNav user={user} />
         </div>
       </header>
@@ -49,7 +67,15 @@ export default function Dashboard({ user, tasks, sentTodayCount }: DashboardProp
           </CardHeader>
           <CardContent>
             {user.role === 'member' ? (
-              <SheetTable tasks={tasks} />
+              <div className="space-y-6">
+                {activeProfileId ? (
+                  <SheetTable tasks={tasks} activeProfileId={activeProfileId} />
+                ) : (
+                  <div className="p-8 text-center text-muted-foreground border border-dashed rounded-md">
+                    <p>Выберите профиль отправителя для просмотра и получения задач.</p>
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="text-center text-muted-foreground">
                 Добро пожаловать, админ! У вас нет ежедневных задач.

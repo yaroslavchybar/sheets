@@ -36,9 +36,10 @@ import type { Id } from '../../convex/_generated/dataModel';
 
 interface SheetTableProps {
   tasks: InstagramAccount[];
+  activeProfileId?: string;
 }
 
-export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
+export function SheetTable({ tasks: initialTasks, activeProfileId }: SheetTableProps) {
   const [tasks, setTasks] = React.useState<InstagramAccount[]>(initialTasks);
   const [isClient, setIsClient] = React.useState(false);
   const [isPending, startTransition] = useTransition();
@@ -119,10 +120,21 @@ export function SheetTable({ tasks: initialTasks }: SheetTableProps) {
   const handleGetTasks = () => {
     const token = getSessionToken();
     if (!token) return;
+    if (!activeProfileId) {
+      toast({
+        variant: 'destructive',
+        title: 'Ошибка',
+        description: 'Пожалуйста, выберите профиль отправителя.',
+      });
+      return;
+    }
 
     startAssignmentTransition(async () => {
       try {
-        await triggerAssign({ sessionToken: token });
+        await triggerAssign({
+          sessionToken: token,
+          senderProfileId: activeProfileId as Id<"senderProfiles">
+        });
       } catch (error: any) {
         toast({
           variant: 'destructive',

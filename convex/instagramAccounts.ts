@@ -1,9 +1,10 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 
 export const getDailyTasks = query({
     args: {
         sessionToken: v.string(),
+        senderProfileId: v.optional(v.id("senderProfiles")),
     },
     handler: async (ctx, args) => {
         const session = await ctx.db
@@ -14,15 +15,16 @@ export const getDailyTasks = query({
 
         const today = new Date().toISOString().split("T")[0];
 
-        const tasks = await ctx.db
+        let q = ctx.db
             .query("instagramAccounts")
-            .withIndex("by_assignedTo_date_status", (q) =>
+            .withIndex("by_profile_date_status", (q) =>
                 q
-                    .eq("assignedTo", session.userId)
+                    .eq("senderProfileId", args.senderProfileId!)
                     .eq("assignmentDate", today)
                     .eq("status", "assigned")
-            )
-            .collect();
+            );
+
+        const tasks = await q.collect();
 
         return tasks.map((t) => ({
             id: t._id,
@@ -37,6 +39,7 @@ export const getDailyTasks = query({
 export const triggerAssignment = mutation({
     args: {
         sessionToken: v.string(),
+        senderProfileId: v.id("senderProfiles"),
     },
     handler: async (ctx, args) => {
         const session = await ctx.db
@@ -50,16 +53,21 @@ export const triggerAssignment = mutation({
         const user = await ctx.db.get(session.userId);
         if (!user) throw new Error("Пользователь не найден.");
 
+        const profile = await ctx.db.get(args.senderProfileId);
+        if (!profile || profile.userId !== session.userId) {
+            throw new Error("Профиль не найден.");
+        }
+
         const today = new Date().toISOString().split("T")[0];
         const assignmentLimit = user.dailyAssignmentsLimit;
 
-        // If limit is 0, clear all today's assignments
+        // If limit is 0, clear all today's assignments for this profile
         if (assignmentLimit === 0) {
             const todaysAssignments = await ctx.db
                 .query("instagramAccounts")
-                .withIndex("by_assignedTo_date_status", (q) =>
+                .withIndex("by_profile_date_status", (q) =>
                     q
-                        .eq("assignedTo", user._id)
+                        .eq("senderProfileId", args.senderProfileId)
                         .eq("assignmentDate", today)
                 )
                 .collect();
@@ -67,19 +75,19 @@ export const triggerAssignment = mutation({
             for (const a of todaysAssignments) {
                 await ctx.db.patch(a._id, {
                     status: "available",
-                    assignedTo: undefined,
+                    senderProfileId: undefined,
                     assignmentDate: undefined,
                 });
             }
             return { success: true };
         }
 
-        // Count assigned + sent for today
+        // Count assigned + sent for today for this profile
         const assignedToday = await ctx.db
             .query("instagramAccounts")
-            .withIndex("by_assignedTo_date_status", (q) =>
+            .withIndex("by_profile_date_status", (q) =>
                 q
-                    .eq("assignedTo", user._id)
+                    .eq("senderProfileId", args.senderProfileId)
                     .eq("assignmentDate", today)
                     .eq("status", "assigned")
             )
@@ -87,9 +95,9 @@ export const triggerAssignment = mutation({
 
         const sentToday = await ctx.db
             .query("instagramAccounts")
-            .withIndex("by_assignedTo_date_status", (q) =>
+            .withIndex("by_profile_date_status", (q) =>
                 q
-                    .eq("assignedTo", user._id)
+                    .eq("senderProfileId", args.senderProfileId)
                     .eq("assignmentDate", today)
                     .eq("status", "sent")
             )
@@ -98,7 +106,7 @@ export const triggerAssignment = mutation({
         const generatedTodayCount = assignedToday.length + sentToday.length;
 
         if (generatedTodayCount >= assignmentLimit) {
-            throw new Error("Дневной лимит уже достигнут. Новые задачи не назначены.");
+            throw new Error("Дневной лимит для этого профиля уже достигнут.");
         }
 
         const remainingTasks = assignmentLimit - generatedTodayCount;
@@ -113,7 +121,7 @@ export const triggerAssignment = mutation({
         for (const account of availableAccounts) {
             await ctx.db.patch(account._id, {
                 status: "assigned",
-                assignedTo: user._id,
+                senderProfileId: args.senderProfileId,
                 assignmentDate: today,
             });
         }
@@ -137,8 +145,15 @@ export const markAsSent = mutation({
         }
 
         const account = await ctx.db.get(args.instagramId);
-        if (!account || account.assignedTo !== session.userId) {
-            throw new Error("Аккаунт не найден или не назначен вам.");
+
+        if (!account || !account.senderProfileId) {
+            throw new Error("Аккаунт не найден.");
+        }
+
+        // Verify the profile belongs to this user
+        const profile = await ctx.db.get(account.senderProfileId);
+        if (!profile || profile.userId !== session.userId) {
+            throw new Error("Профиль не найден или аккаунт не назначен профилю этого пользователя.");
         }
 
         await ctx.db.patch(args.instagramId, {
@@ -149,8 +164,7 @@ export const markAsSent = mutation({
         const user = await ctx.db.get(session.userId);
         if (user) {
             await ctx.db.patch(session.userId, {
-                sentToday: (user.sentToday ?? (user as any).subscribedToday ?? 0) + 1,
-                sentTotal: (user.sentTotal ?? (user as any).subscribedTotal ?? 0) + 1,
+                sentToday: (user.sentToday ?? 0) + 1,
             });
         }
 
@@ -173,8 +187,15 @@ export const markAsSkipped = mutation({
         }
 
         const account = await ctx.db.get(args.instagramId);
-        if (!account || account.assignedTo !== session.userId) {
-            throw new Error("Аккаунт не найден или не назначен вам.");
+
+        if (!account || !account.senderProfileId) {
+            throw new Error("Аккаунт не найден.");
+        }
+
+        // Verify the profile belongs to this user
+        const profile = await ctx.db.get(account.senderProfileId);
+        if (!profile || profile.userId !== session.userId) {
+            throw new Error("Профиль не найден или аккаунт не назначен профилю этого пользователя.");
         }
 
         await ctx.db.patch(args.instagramId, {
@@ -278,5 +299,45 @@ export const getStats = query({
             skipped: skipped.length,
             total: available.length + assigned.length + sent.length + skipped.length,
         };
+    },
+});
+
+export const resetUnassignedTasks = internalMutation({
+    args: {},
+    handler: async (ctx) => {
+        const assignedTasks = await ctx.db
+            .query("instagramAccounts")
+            .withIndex("by_status", (q) => q.eq("status", "assigned"))
+            .collect();
+
+        for (const account of assignedTasks) {
+            await ctx.db.patch(account._id, {
+                status: "available",
+                senderProfileId: undefined,
+                assignmentDate: undefined,
+            });
+        }
+    },
+});
+
+export const resetUserDailyStats = internalMutation({
+    args: {},
+    handler: async (ctx) => {
+        const users = await ctx.db.query("users").collect();
+
+        for (const user of users) {
+            // Only update if they have sent tasks today
+            if (user.sentToday && user.sentToday > 0) {
+                const currentTotal = user.sentTotal ?? 0;
+                await ctx.db.patch(user._id, {
+                    sentTotal: currentTotal + user.sentToday,
+                    sentToday: 0,
+                });
+            } else if (user.sentToday === undefined) {
+                await ctx.db.patch(user._id, {
+                    sentToday: 0,
+                });
+            }
+        }
     },
 });

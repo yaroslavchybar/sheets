@@ -1,3 +1,8 @@
+export type SenderProfile = {
+  _id: string; // Internal Convex ID
+  userId: string;
+  igUsername: string;
+};
 
 export type Task = {
   id: string;
@@ -6,7 +11,7 @@ export type Task = {
   assignee: {
     name: string;
     avatar: string;
-    email: string;
+    email?: string;
   };
   status: 'To Do' | 'In Progress' | 'Done';
   dueDate: string;

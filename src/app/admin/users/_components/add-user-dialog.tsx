@@ -33,7 +33,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useTransition } from 'react';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, Eye, EyeOff } from 'lucide-react';
 import { useMutation } from 'convex/react';
 import { api } from '../../../../../convex/_generated/api';
 import { getSessionToken } from '@/hooks/use-session';
@@ -52,6 +52,7 @@ export function AddUserDialog() {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const [isOpen, setIsOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const createUserMutation = useMutation(api.users.createUser);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -132,11 +133,26 @@ export function AddUserDialog() {
                 <FormItem>
                   <FormLabel>Пароль</FormLabel>
                   <FormControl>
-                    <Input
-                      type="password"
-                      placeholder="••••••••"
-                      {...field}
-                    />
+                    <div className="relative">
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        className="pr-10"
+                        {...field}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground focus:outline-none"
+                        tabIndex={-1}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" aria-hidden="true" />
+                        ) : (
+                          <Eye className="h-4 w-4" aria-hidden="true" />
+                        )}
+                      </button>
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>

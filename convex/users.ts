@@ -126,16 +126,26 @@ export const updateUserAssignmentLimit = mutation({
 
         const today = new Date().toISOString().split("T")[0];
 
-        // Count pending assignments for today
-        const pendingAssignments = await ctx.db
-            .query("instagramAccounts")
-            .withIndex("by_assignedTo_date_status", (q) =>
-                q
-                    .eq("assignedTo", args.userId)
-                    .eq("assignmentDate", today)
-                    .eq("status", "assigned")
-            )
+        // Get all sender profiles for this user
+        const userProfiles = await ctx.db
+            .query("senderProfiles")
+            .withIndex("by_userId", (q) => q.eq("userId", args.userId))
             .collect();
+
+        // Count pending assignments across all profiles
+        let pendingAssignments: Array<any> = [];
+        for (const profile of userProfiles) {
+            const profileAssignments = await ctx.db
+                .query("instagramAccounts")
+                .withIndex("by_profile_date_status", (q) =>
+                    q
+                        .eq("senderProfileId", profile._id)
+                        .eq("assignmentDate", today)
+                        .eq("status", "assigned")
+                )
+                .collect();
+            pendingAssignments.push(...profileAssignments);
+        }
 
         const targetUser = await ctx.db.get(args.userId);
         if (!targetUser) throw new Error("Пользователь не найден.");
@@ -152,7 +162,7 @@ export const updateUserAssignmentLimit = mutation({
             for (const assignment of toRemove) {
                 await ctx.db.patch(assignment._id, {
                     status: "available",
-                    assignedTo: undefined,
+                    senderProfileId: undefined,
                     assignmentDate: undefined,
                 });
             }

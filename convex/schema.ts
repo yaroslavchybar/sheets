@@ -9,9 +9,6 @@ export default defineSchema({
         dailyAssignmentsLimit: v.number(),
         sentToday: v.optional(v.number()),
         sentTotal: v.optional(v.number()),
-        // Legacy fields — kept optional during migration
-        subscribedToday: v.optional(v.number()),
-        subscribedTotal: v.optional(v.number()),
     }).index("by_email", ["email"]),
 
     sessions: defineTable({
@@ -21,6 +18,11 @@ export default defineSchema({
     })
         .index("by_token", ["token"])
         .index("by_userId", ["userId"]),
+
+    senderProfiles: defineTable({
+        userId: v.id("users"),
+        igUsername: v.string(),
+    }).index("by_userId", ["userId"]),
 
     instagramAccounts: defineTable({
         userName: v.string(),
@@ -32,14 +34,14 @@ export default defineSchema({
             v.literal("skip")
         ),
         message: v.optional(v.boolean()),
-        assignedTo: v.optional(v.id("users")),
+        senderProfileId: v.optional(v.id("senderProfiles")),
         assignmentDate: v.optional(v.string()),
         createdAt: v.string(),
     })
         .index("by_status", ["status"])
         .index("by_userName", ["userName"])
-        .index("by_assignedTo_date_status", [
-            "assignedTo",
+        .index("by_profile_date_status", [
+            "senderProfileId",
             "assignmentDate",
             "status",
         ]),

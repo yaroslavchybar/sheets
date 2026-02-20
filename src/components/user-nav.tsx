@@ -29,9 +29,10 @@ import { getSessionToken, clearSessionToken } from '@/hooks/use-session';
 
 type UserNavProps = {
   user: AppUser;
+  customTrigger?: React.ReactNode;
 };
 
-export function UserNav({ user }: UserNavProps) {
+export function UserNav({ user, customTrigger }: UserNavProps) {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const signOut = useMutation(api.auth.signOut);
@@ -60,12 +61,14 @@ export function UserNav({ user }: UserNavProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={user.photoUrl} alt={`@${displayName}`} />
-            <AvatarFallback>{fallback}</AvatarFallback>
-          </Avatar>
-        </Button>
+        {customTrigger ? customTrigger : (
+          <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={user.photoUrl} alt={`@${displayName}`} />
+              <AvatarFallback>{fallback}</AvatarFallback>
+            </Avatar>
+          </Button>
+        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">

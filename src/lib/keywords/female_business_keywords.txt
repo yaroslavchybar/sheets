@@ -43,38 +43,32 @@ showroom
 store
 shop
 beauty
-studio 
+studio
 репетитор
-робота 
-нмт 
+робота
+нмт
 аксессуары
-внму 
+внму
 знайомства
 парфуми
-аніматори 
+аніматори
 дипломні
 курсові
 реферати
-авто 
-аксесуарчик 
-work 
-одягу 
-ігри 
-розваги 
+авто
+аксесуарчик
+work
+одягу
+ігри
+розваги
 корекція
-клиенты 
+клиенты
 проект
-чан 
-іграшки 
+чан
+іграшки
 підготовка
 прокат
 шукаю
-
-# This file defines keywords for identifying female-oriented businesses.
-# It includes Ukrainian, Russian, and English terms.
-# Add or remove words to improve accuracy. One word/phrase per line.
-
-# --- Beauty & Wellness (Краса та Здоров'я) ---
 # Services
 nails
 brows
@@ -112,7 +106,6 @@ depilation
 перманент
 догляд
 здоров'я
-# Russian Equivalents
 маникюр
 ногти
 ресниц
@@ -127,9 +120,6 @@ depilation
 депиляция
 перманентный
 уход
-
-# --- Fashion & Retail (Мода та Магазини) ---
-# Product Types
 lingerie
 boutique
 showroom
@@ -156,7 +146,6 @@ handbags
 бутік
 прикраси
 шоурум
-# Russian Equivalents
 белье
 одежда
 платье
@@ -166,8 +155,6 @@ handbags
 обувь
 сумки
 украшения
-
-# --- Services & Professions (Послуги та Професії) ---
 photographer
 taro
 SMM
@@ -186,12 +173,9 @@ designer
 нумеролог
 дизайнер
 консультант
-# Russian Equivalents
 обучение
 консультант
 астролог
-
-# --- Health & Fitness (Спорт та Фітнес) ---
 fitness
 yoga
 pilates
@@ -207,13 +191,10 @@ nutrition
 тренування
 дієтолог
 нутриціолог
-# Russian Equivalents
 фитнес
 тренировки
 диетолог
 нутрициолог
-
-# --- Home, Hobbies & Events (Дім, Хобі та Події) ---
 decor
 handmade
 bakery
@@ -231,7 +212,6 @@ wedding
 кондитер
 десерти
 організація
-# Russian Equivalents
 декор
 свечи
 выпечка
@@ -239,8 +219,6 @@ wedding
 десерты
 цветы
 букет
-
-# --- General & Business Terms (Загальні терміни)---
 жіночий
 жіноча
 beauty
@@ -249,7 +227,6 @@ female
 студія
 майстерня
 запис
-# Russian Equivalents
 женский
 женская
 салон

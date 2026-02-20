@@ -6,16 +6,37 @@ import { useSession, clearSessionToken } from '@/hooks/use-session';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { Id } from '../../convex/_generated/dataModel';
 
 export default function Home() {
   const { user: session, isLoading, token } = useSession();
   const router = useRouter();
 
+  const [activeProfileId, setActiveProfileId] = useState<string | undefined>(undefined);
+
+  const profiles = useQuery(
+    api.senderProfiles.getForUser,
+    token ? { sessionToken: token } : "skip"
+  );
+
+  useEffect(() => {
+    // Set first profile as active if none is selected
+    if (profiles && profiles.length > 0 && !activeProfileId) {
+      setActiveProfileId(profiles[0]._id);
+    } else if (profiles && profiles.length === 0) {
+      setActiveProfileId(undefined);
+    }
+  }, [profiles, activeProfileId]);
+
   const tasks = useQuery(
     api.instagramAccounts.getDailyTasks,
-    token ? { sessionToken: token } : "skip"
+    token && profiles !== undefined
+      ? activeProfileId
+        ? { sessionToken: token, senderProfileId: activeProfileId as Id<"senderProfiles"> }
+        : { sessionToken: token } // If there are no profiles, just fetch general or empty
+      : "skip"
   );
 
   useEffect(() => {
@@ -31,7 +52,7 @@ export default function Home() {
     }
   }, [session, router]);
 
-  if (isLoading || !session || tasks === undefined) {
+  if (isLoading || !session || tasks === undefined || profiles === undefined) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="space-y-3 w-full max-w-2xl p-8">
@@ -64,5 +85,14 @@ export default function Home() {
 
   const sentTodayCount = session.sentToday ?? 0;
 
-  return <Dashboard user={appUser} tasks={dailyTasks} sentTodayCount={sentTodayCount} />;
+  return (
+    <Dashboard
+      user={appUser}
+      tasks={dailyTasks}
+      sentTodayCount={sentTodayCount}
+      profiles={profiles as any}
+      activeProfileId={activeProfileId}
+      onSelectProfile={setActiveProfileId}
+    />
+  );
 }
