@@ -8,7 +8,8 @@ import { api } from "../../convex/_generated/api";
 
 async function loadKeywordsFromDb(filename: string): Promise<Set<string>> {
     try {
-        const client = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+        const url = process.env.NEXT_PUBLIC_CONVEX_URL!.replace(/\/$/, "");
+        const client = new ConvexHttpClient(url);
         const content = await client.query(api.keywords.get, { filename });
         const words = new Set<string>();
         for (const line of content.split("\n")) {

@@ -1,8 +1,0 @@
-
-> nextn@0.1.0 typecheck
-> tsc --noEmit
-
-src/components/admin-sidebar.tsx(111,54): error TS2322: Type '{ children: Element[]; key: string; placement: string; }' is not assignable to type 'IntrinsicAttributes & TooltipProps'.
-  Property 'placement' does not exist on type 'IntrinsicAttributes & TooltipProps'.
-src/components/admin-sidebar.tsx(128,38): error TS2322: Type '{ children: Element[]; placement: string; }' is not assignable to type 'IntrinsicAttributes & TooltipProps'.
-  Property 'placement' does not exist on type 'IntrinsicAttributes & TooltipProps'.
