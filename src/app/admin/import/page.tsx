@@ -27,12 +27,6 @@ export default function AdminImportPage() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Загрузка Базы</h1>
-                <p className="text-muted-foreground mt-2">
-                    Импортируйте новые аккаунты из CSV файлов. Система автоматически отфильтрует женские профили.
-                </p>
-            </div>
             <UploadTabContent token={token} />
         </div>
     );

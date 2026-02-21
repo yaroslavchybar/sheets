@@ -1,5 +1,6 @@
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../convex/_generated/api";
+import { getLanguageIdentificationModel } from "fasttext.wasm.js";
 
 /**
  * Gender classification for Instagram accounts.
@@ -26,22 +27,56 @@ async function loadKeywordsFromDb(filename: string): Promise<Set<string>> {
 }
 
 export interface KeywordSets {
-    femaleBusinessKw: Set<string>;
-    maleExceptions: Set<string>;
-    femNames: Set<string>;
+    usMaleNames: Set<string>;
 }
 
 export async function fetchAllKeywordSets(): Promise<KeywordSets> {
-    const [femaleBusinessKw, maleExceptions, ukrNames, rusNames] = await Promise.all([
-        loadKeywordsFromDb("female_business_keywords.txt"),
-        loadKeywordsFromDb("males_names.txt"),
-        loadKeywordsFromDb("ukrainian_female_names.txt"),
-        loadKeywordsFromDb("russian_female_names.txt"),
-    ]);
+    const usMaleNames = await loadKeywordsFromDb("us_male_names.txt");
+    return { usMaleNames };
+}
 
-    const femNames = new Set([...ukrNames, ...rusNames]);
+let _fastTextModel: any = null;
+async function getFastText() {
+    if (!_fastTextModel) {
+        try {
+            _fastTextModel = await getLanguageIdentificationModel();
+            await _fastTextModel.load();
+        } catch (e) {
+            console.error("FastText load error:", e);
+        }
+    }
+    return _fastTextModel;
+}
 
-    return { femaleBusinessKw, maleExceptions, femNames };
+/**
+ * Check if text is mostly English using fasttext.
+ */
+async function isEnglish(text: string): Promise<boolean> {
+    if (!text || !text.trim()) return true; // empty names pass
+
+    // Check if it's strictly ascii regex-wise as a fast bypass, 
+    // but names like François might be French or English. Let's just use fasttext.
+    const ft = await getFastText();
+    if (!ft) return true; // fallback to true if failed to load
+
+    try {
+        const res = await ft.model.predict(text.trim() + "\n", 1, 0.0);
+        if (!res || typeof res.size !== 'function' || res.size() === 0) {
+            if (res && typeof res.delete === 'function') res.delete();
+            return true;
+        }
+
+        const pair = res.get(0);
+        const label = pair[1]; // e.g., __label__en
+
+        if (res && typeof res.delete === 'function') res.delete();
+
+        // Returning whether top detected language is English
+        return label === "__label__en";
+    } catch (e) {
+        console.error("FastText predict error:", e);
+        return true; // fail securely
+    }
 }
 
 const FEMALE_ENDINGS = ["a", "ya", "ia", "ina", "ova", "eva", "skaya", "ivna", "yivna", "ovna"];
@@ -72,23 +107,9 @@ export function classifyGender(username: string, fullname: string, keywordSets: 
     const cleanedText = normalizedText.replace(/[^a-zа-яёїієґ]+/g, " ");
     const parts = new Set(cleanedText.split(/\s+/).filter(Boolean));
 
-    const { femaleBusinessKw, maleExceptions, femNames } = keywordSets;
-
-    for (const keyword of femaleBusinessKw) {
-        if (parts.has(keyword)) return "female";
-    }
-
-    for (const maleName of maleExceptions) {
-        if (parts.has(maleName)) return "keep";
-    }
-
-    for (const femaleName of femNames) {
-        if (parts.has(femaleName)) return "female";
-    }
-
-    // Last resort: check female endings
+    // Check female endings on the parts
     for (const part of parts) {
-        if (part.length > 3 && !maleExceptions.has(part)) {
+        if (part.length > 3) {
             for (const ending of FEMALE_ENDINGS) {
                 if (part.endsWith(ending)) return "female";
             }
@@ -206,6 +227,50 @@ export async function filterAndExtract(
     for (const row of rows) {
         const username = getField(row, USERNAME_ALIASES);
         const fullname = getField(row, FULLNAME_ALIASES);
+
+        if (fullname) {
+            const eng = await isEnglish(fullname);
+            if (!eng) {
+                removed++;
+                continue;
+            }
+        }
+
+        // Check against US Male names allow-list
+        if (keywordSets.usMaleNames.size > 0) {
+            let hasMaleName = false;
+
+            // 1. Check Full Name
+            if (fullname) {
+                const cleanedFullName = fullname.toLowerCase().replace(/[^a-z]+/g, " ");
+                const nameParts = cleanedFullName.split(/\s+/).filter(Boolean);
+                for (const part of nameParts) {
+                    if (keywordSets.usMaleNames.has(part)) {
+                        hasMaleName = true;
+                        break;
+                    }
+                }
+            }
+
+            // 2. Fallback: Check Username (e.g. john_smith99 -> 'john', 'smith')
+            if (!hasMaleName && username) {
+                // Remove numbers, underscores, dots, and convert to lowercase parts
+                const cleanedUserName = username.toLowerCase().replace(/[^a-z]+/g, " ");
+                const userParts = cleanedUserName.split(/\s+/).filter(Boolean);
+                for (const part of userParts) {
+                    if (keywordSets.usMaleNames.has(part)) {
+                        hasMaleName = true;
+                        break;
+                    }
+                }
+            }
+
+            // If we strictly want to keep US males, and neither fullname nor username contain a recognized male name, we skip them.
+            if (!hasMaleName) {
+                removed++;
+                continue;
+            }
+        }
 
         if (classifyGender(username, fullname, keywordSets) === "female") {
             removed++;

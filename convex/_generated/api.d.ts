@@ -12,6 +12,7 @@ import type * as auth from "../auth.js";
 import type * as crons from "../crons.js";
 import type * as instagramAccounts from "../instagramAccounts.js";
 import type * as keywords from "../keywords.js";
+import type * as migrations from "../migrations.js";
 import type * as senderProfiles from "../senderProfiles.js";
 import type * as users from "../users.js";
 
@@ -26,6 +27,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   instagramAccounts: typeof instagramAccounts;
   keywords: typeof keywords;
+  migrations: typeof migrations;
   senderProfiles: typeof senderProfiles;
   users: typeof users;
 }>;

@@ -261,7 +261,10 @@ export const insertBatch = mutation({
 });
 
 export const getStats = query({
-    args: { sessionToken: v.string() },
+    args: {
+        sessionToken: v.string(),
+        timeframe: v.optional(v.union(v.literal("24h"), v.literal("3d"), v.literal("7d"), v.literal("30d"), v.literal("all"))),
+    },
     handler: async (ctx, args) => {
         const session = await ctx.db
             .query("sessions")
@@ -272,32 +275,51 @@ export const getStats = query({
         const currentUser = await ctx.db.get(session.userId);
         if (!currentUser || currentUser.role !== "admin") return null;
 
-        const available = await ctx.db
-            .query("instagramAccounts")
-            .withIndex("by_status", (q) => q.eq("status", "available"))
-            .collect();
+        let cutoffDate = 0;
+        if (args.timeframe && args.timeframe !== "all") {
+            const now = Date.now();
+            switch (args.timeframe) {
+                case "24h":
+                    cutoffDate = now - 24 * 60 * 60 * 1000;
+                    break;
+                case "3d":
+                    cutoffDate = now - 3 * 24 * 60 * 60 * 1000;
+                    break;
+                case "7d":
+                    cutoffDate = now - 7 * 24 * 60 * 60 * 1000;
+                    break;
+                case "30d":
+                    cutoffDate = now - 30 * 24 * 60 * 60 * 1000;
+                    break;
+            }
+        }
 
-        const assigned = await ctx.db
-            .query("instagramAccounts")
-            .withIndex("by_status", (q) => q.eq("status", "assigned"))
-            .collect();
+        const fetchByStatus = async (status: string) => {
+            const results = await ctx.db
+                .query("instagramAccounts")
+                .withIndex("by_status", (q) => q.eq("status", status))
+                .collect();
 
-        const sent = await ctx.db
-            .query("instagramAccounts")
-            .withIndex("by_status", (q) => q.eq("status", "sent"))
-            .collect();
+            if (cutoffDate > 0) {
+                return results.filter(account => {
+                    const time = account.createdAt ? new Date(account.createdAt).getTime() : account._creationTime;
+                    return time >= cutoffDate;
+                }).length;
+            }
+            return results.length;
+        };
 
-        const skipped = await ctx.db
-            .query("instagramAccounts")
-            .withIndex("by_status", (q) => q.eq("status", "skip"))
-            .collect();
+        const available = await fetchByStatus("available");
+        const assigned = await fetchByStatus("assigned");
+        const sent = await fetchByStatus("sent");
+        const skipped = await fetchByStatus("skip");
 
         return {
-            available: available.length,
-            assigned: assigned.length,
-            sent: sent.length,
-            skipped: skipped.length,
-            total: available.length + assigned.length + sent.length + skipped.length,
+            available,
+            assigned,
+            sent,
+            skipped,
+            total: available + assigned + sent + skipped,
         };
     },
 });
@@ -339,5 +361,133 @@ export const resetUserDailyStats = internalMutation({
                 });
             }
         }
+    },
+});
+
+function normalizeText(text: string): string {
+    const normMap: Record<string, string> = {
+        "ᴀ": "a", "ʙ": "b", "ᴄ": "c", "ᴅ": "d", "ᴇ": "e", "ꜰ": "f", "ɢ": "g", "ʜ": "h",
+        "ɪ": "i", "ᴊ": "j", "ᴋ": "k", "ʟ": "l", "ᴍ": "m", "ɴ": "n", "ᴏ": "o", "ᴘ": "p",
+        "ǫ": "q", "ʀ": "r", "ꜱ": "s", "ᴛ": "t", "ᴜ": "u", "ᴠ": "v", "ᴡ": "w",
+        "ʏ": "y", "ᴢ": "z",
+    };
+
+    // Convert stylized unicode variants (like fraktur) back to ascii and remove diacritics
+    let result = text.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+
+    for (const [char, replacement] of Object.entries(normMap)) {
+        result = result.replaceAll(char, replacement);
+    }
+    return result;
+}
+
+export const removeByKeyword = mutation({
+    args: {
+        keyword: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const keywordLower = args.keyword.toLowerCase().trim();
+        if (!keywordLower) return 0;
+
+        let removedCount = 0;
+
+        // Query available
+        const availableAccounts = await ctx.db
+            .query("instagramAccounts")
+            .withIndex("by_status", (q) => q.eq("status", "available"))
+            .collect();
+
+        // Query assigned
+        const assignedAccounts = await ctx.db
+            .query("instagramAccounts")
+            .withIndex("by_status", (q) => q.eq("status", "assigned"))
+            .collect();
+
+        const allActive = [...availableAccounts, ...assignedAccounts];
+
+        for (const account of allActive) {
+            const normalizedFullName = normalizeText(account.fullName).toLowerCase();
+            const userNameLower = account.userName.toLowerCase();
+            const combinedText = `${userNameLower} ${normalizedFullName}`;
+
+            if (combinedText.includes(keywordLower)) {
+                await ctx.db.delete(account._id);
+                removedCount++;
+            }
+        }
+
+        return removedCount;
+    },
+});
+
+export const runFullFiltration = mutation({
+    args: {},
+    handler: async (ctx) => {
+        let removedCount = 0;
+
+        // Fetch the US Male Allow List
+        const keywordsDoc = await ctx.db
+            .query("keywords")
+            .withIndex("by_filename", (q) => q.eq("filename", "us_male_names.txt"))
+            .first();
+
+        if (!keywordsDoc || !keywordsDoc.content) {
+            return 0; // No allow-list to filter by
+        }
+
+        const usMaleNames = new Set(
+            keywordsDoc.content.split("\n").map(w => w.toLowerCase().trim()).filter(Boolean)
+        );
+
+        if (usMaleNames.size === 0) return 0;
+
+        // Query available
+        const availableAccounts = await ctx.db
+            .query("instagramAccounts")
+            .withIndex("by_status", (q) => q.eq("status", "available"))
+            .collect();
+
+        // Query assigned
+        const assignedAccounts = await ctx.db
+            .query("instagramAccounts")
+            .withIndex("by_status", (q) => q.eq("status", "assigned"))
+            .collect();
+
+        const allActive = [...availableAccounts, ...assignedAccounts];
+
+        for (const account of allActive) {
+            const normalizedFullName = normalizeText(account.fullName || "").toLowerCase();
+            const userNameLower = (account.userName || "").toLowerCase();
+
+            let hasMaleName = false;
+
+            // 1. Check Full Name
+            const fnParts = normalizedFullName.replace(/[^a-z]+/g, " ").split(/\s+/).filter(Boolean);
+            for (const part of fnParts) {
+                if (usMaleNames.has(part)) {
+                    hasMaleName = true;
+                    break;
+                }
+            }
+
+            // 2. Check Username
+            if (!hasMaleName) {
+                const unParts = userNameLower.replace(/[^a-z]+/g, " ").split(/\s+/).filter(Boolean);
+                for (const part of unParts) {
+                    if (usMaleNames.has(part)) {
+                        hasMaleName = true;
+                        break;
+                    }
+                }
+            }
+
+            // If it DOES NOT have a male name, delete it
+            if (!hasMaleName) {
+                await ctx.db.delete(account._id);
+                removedCount++;
+            }
+        }
+
+        return removedCount;
     },
 });

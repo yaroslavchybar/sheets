@@ -16,8 +16,11 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { UserRoleSelector } from './_components/user-role-selector';
 import { UserAssignmentInput } from './_components/user-assignment-input';
@@ -72,9 +75,22 @@ export default function AdminUsersPage() {
   const { user: session, isLoading, token } = useSession();
   const router = useRouter();
   const { toast } = useToast();
+  const [timeframe, setTimeframe] = useState<"24h" | "3d" | "7d" | "30d" | "all">("all");
+
+  useEffect(() => {
+    const saved = localStorage.getItem('admin_stats_timeframe');
+    if (saved) {
+      setTimeframe(saved as any);
+    }
+  }, []);
+
+  const handleTimeframeChange = (value: "24h" | "3d" | "7d" | "30d" | "all") => {
+    setTimeframe(value);
+    localStorage.setItem('admin_stats_timeframe', value);
+  };
 
   const users = useQuery(api.users.getAllUsersWithRoles, token ? { sessionToken: token } : "skip");
-  const stats = useQuery(api.instagramAccounts.getStats, token ? { sessionToken: token } : "skip");
+  const stats = useQuery(api.instagramAccounts.getStats, token ? { sessionToken: token, timeframe } : "skip");
   const deleteUserMutation = useMutation(api.users.deleteUser);
   const [isDeleting, startDeleteTransition] = useTransition();
 
@@ -137,19 +153,30 @@ export default function AdminUsersPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      {/* Overview Head */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Обзор & Пользователи</h1>
-        <p className="text-muted-foreground mt-2">
-          Просматривайте статистику базы данных и управляйте правами доступа пользователей.
-        </p>
-      </div>
+      {/* Stats Strip */}
       {/* Stats Strip */}
       {stats && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {statItems.map((s) => (
-            <StatCard key={s.label} {...s} />
-          ))}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold tracking-tight">Статистика базы данных</h2>
+            <Select value={timeframe} onValueChange={handleTimeframeChange}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="За все время" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">За все время</SelectItem>
+                <SelectItem value="24h">За 24 часа</SelectItem>
+                <SelectItem value="3d">За 3 дня</SelectItem>
+                <SelectItem value="7d">За 7 дней</SelectItem>
+                <SelectItem value="30d">За 30 дней</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {statItems.map((s) => (
+              <StatCard key={s.label} {...s} />
+            ))}
+          </div>
         </div>
       )}
 

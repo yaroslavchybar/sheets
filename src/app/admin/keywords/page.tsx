@@ -27,12 +27,6 @@ export default function AdminKeywordsPage() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Словари и Ключи</h1>
-                <p className="text-muted-foreground mt-2">
-                    Управляйте списками женских и мужских имен, а также ключевыми словами для автоматической фильтрации нецелевых профилей.
-                </p>
-            </div>
             <KeywordsTabContent />
         </div>
     );

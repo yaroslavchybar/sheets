@@ -70,59 +70,51 @@ export function UserNav({ user, customTrigger }: UserNavProps) {
           </Button>
         )}
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{displayName}</p>
-            <p className="text-xs leading-none text-muted-foreground">
-              {user.email}
-            </p>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem disabled>
-            <UserIcon className="mr-2 h-4 w-4" />
-            <span>Профиль</span>
+      <DropdownMenuContent className="w-64 p-0 overflow-hidden border-muted-foreground/20 rounded-xl shadow-lg" align="end" forceMount>
+        {/* Header Section */}
+        <div className="flex flex-col space-y-1 p-4 bg-muted/40 border-b border-muted-foreground/10">
+          <p className="text-sm font-semibold leading-none text-foreground">{displayName}</p>
+          <p className="text-xs leading-none text-muted-foreground mt-1.5">
+            {user.email}
+          </p>
+        </div>
+
+        {/* Menu Items */}
+        <div className="p-1">
+          <DropdownMenuGroup>
+            <div className="px-3 py-2 my-1">
+              <div className="flex items-center p-1 rounded-full bg-muted/50 border border-muted-foreground/10">
+                <button
+                  onClick={() => setTheme('light')}
+                  className={`flex-1 flex justify-center items-center py-1.5 rounded-full transition-all ${theme === 'light'
+                      ? 'bg-background shadow-sm text-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                >
+                  <Sun className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setTheme('dark')}
+                  className={`flex-1 flex justify-center items-center py-1.5 rounded-full transition-all ${theme === 'dark' || theme === 'system' // Default to dark if system
+                      ? 'bg-background shadow-sm text-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                >
+                  <Moon className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </DropdownMenuGroup>
+        </div>
+
+        <DropdownMenuSeparator className="m-0 bg-muted-foreground/10" />
+
+        <div className="p-1">
+          <DropdownMenuItem onClick={handleLogout} className="px-3 py-2.5 rounded-lg my-0.5 cursor-default hover:bg-accent focus:bg-accent transition-colors text-foreground">
+            <LogOut className="mr-3 h-4 w-4 text-muted-foreground" />
+            <span className="font-medium">Выйти</span>
           </DropdownMenuItem>
-          {user.role === 'admin' && (
-            <Link href="/admin/users" passHref>
-              <DropdownMenuItem>
-                <Shield className="mr-2 h-4 w-4" />
-                <span>Управление</span>
-              </DropdownMenuItem>
-            </Link>
-          )}
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
-              <Palette className="mr-2 h-4 w-4" />
-              <span>Тема</span>
-            </DropdownMenuSubTrigger>
-            <DropdownMenuPortal>
-              <DropdownMenuSubContent>
-                <DropdownMenuRadioGroup value={theme} onValueChange={setTheme}>
-                  <DropdownMenuRadioItem value="light">
-                    <Sun className="mr-2 h-4 w-4" />
-                    <span>Светлая</span>
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="dark">
-                    <Moon className="mr-2 h-4 w-4" />
-                    <span>Темная</span>
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="system">
-                    <Laptop className="mr-2 h-4 w-4" />
-                    <span>Системная</span>
-                  </DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
-              </DropdownMenuSubContent>
-            </DropdownMenuPortal>
-          </DropdownMenuSub>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout}>
-          <LogOut className="mr-2 h-4 w-4" />
-          <span>Выйти</span>
-        </DropdownMenuItem>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );

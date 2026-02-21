@@ -122,15 +122,6 @@ export function UploadTabContent({ token }: { token: string }) {
     return (
         <div className="animate-fade-in-up stagger-2">
             <Card className="border-muted shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="bg-muted/30 border-b pb-6">
-                    <CardTitle className="flex items-center gap-2 text-xl">
-                        <Upload className="h-6 w-6 text-primary" />
-                        Импорт CSV
-                    </CardTitle>
-                    <CardDescription>
-                        Загрузите CSV файл с аккаунтами Instagram. Женские аккаунты будут автоматически отфильтрованы по словарю.
-                    </CardDescription>
-                </CardHeader>
                 <CardContent className="pt-6">
                     {/* Step 1: Upload */}
                     {step === 'upload' && (

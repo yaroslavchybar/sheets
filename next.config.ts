@@ -14,6 +14,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  serverExternalPackages: ['fasttext.wasm.js'],
   turbopack: {
     resolveAlias: {
       bufferutil: { browser: '' },
